@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3 uid="uid://vs442rcjp7rw"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_ugd56"]
+
+[node name="Player" type="Player" node_paths=PackedStringArray("pivot", "camera")]
+pivot = NodePath("CameraPivot")
+camera = NodePath("CameraPivot/Camera3D")
+look_sensitivity = 1.0
+de_accel = 0.94
+acceleration = 2000.0
+max_speed = 800.0
+motion_mode = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_ugd56")
+
+[node name="CameraPivot" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+current = true
+far = 20000.0
+
+[node name="SpotLight3D" type="SpotLight3D" parent="."]
