@@ -1,0 +1,19 @@
+[workspace]
+members = ["moonbrain-rs", "meteor"]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+authors = ["Kishan S Patel"]
+description = "A small test game"
+documentation = ""
+rust-version = "1.56"
+
+[workspace.dependencies]
+eyre = { version = "0.6.12" }
+lazy_static = "1.5.0"
+rayon = "1.10.0"
+ron = "0.8.1"
+serde = "1.0.216"
+thiserror = "2.0.6"

@@ -53,5 +53,6 @@ impl IRigidBody3D for GravityBody {
         };
 
         self.base_mut().global_translate(-sun_pos);
+        println!("{sun_pos}");
     }
 }

@@ -1,5 +1,11 @@
 #![allow(clippy::cast_possible_truncation)]
 
+extern crate godot;
+extern crate lazy_static;
+extern crate rayon;
+extern crate ron;
+extern crate serde;
+
 use godot::prelude::*;
 
 pub mod bodies;

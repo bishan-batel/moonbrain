@@ -1,10 +1,9 @@
-use core::f32;
+use std::f32;
 
 use godot::builtin::math::FloatExt;
 use godot::classes::input::MouseMode;
 use godot::classes::{
-    CharacterBody3D, Engine, ICharacterBody2D, ICharacterBody3D, IRigidBody3D, InputEvent,
-    InputEventMouse, InputEventMouseMotion, Marker3D, RigidBody3D, Sprite2D,
+    CharacterBody3D, ICharacterBody3D, InputEvent, InputEventMouseMotion, Marker3D,
 };
 use godot::obj::WithBaseField;
 use godot::prelude::*;

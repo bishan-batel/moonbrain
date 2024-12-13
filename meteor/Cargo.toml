@@ -1,0 +1,23 @@
+[package]
+name = "meteor"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+lazy_static = { workspace = true }
+rayon = { workspace = true }
+ron = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+eyre = { workspace = true }
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
