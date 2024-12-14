@@ -18,6 +18,7 @@ ron = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 eyre = { workspace = true }
+meteor = { path = "../meteor/" }
 
 [lints.clippy]
 all = "warn"

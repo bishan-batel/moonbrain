@@ -8,7 +8,7 @@ edition = "2021"
 authors = ["Kishan S Patel"]
 description = "A small test game"
 documentation = ""
-rust-version = "1.56"
+rust-version = "1.70"
 
 [workspace.dependencies]
 eyre = { version = "0.6.12" }

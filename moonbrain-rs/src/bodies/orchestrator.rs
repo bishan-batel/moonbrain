@@ -1,5 +1,5 @@
-use godot::{obj::WithBaseField, prelude::*};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use godot::{builtin::math::FloatExt, classes::Engine, obj::WithBaseField, prelude::*};
+use rayon::iter::ParallelIterator;
 
 use super::gravity::{self, GravityBody};
 
@@ -17,6 +17,7 @@ pub struct Orchestrator {
 }
 
 impl Orchestrator {
+    #[must_use]
     pub fn sun_pos(&self) -> Option<Vector3> {
         self.sun.as_ref().map(|x| x.get_global_position())
     }
@@ -30,7 +31,7 @@ impl INode for Orchestrator {
             .done();
     }
 
-    fn process(&mut self, _dt: f64) {
+    fn process(&mut self, dt: f64) {
         let mut nodes: Vec<_> = self
             .base()
             .get_tree()
@@ -39,6 +40,15 @@ impl INode for Orchestrator {
             .iter_shared()
             .filter_map(|n| n.try_cast::<GravityBody>().ok())
             .collect();
+
+        let target = if Input::singleton().is_action_pressed("time_scale") {
+            10.
+        } else {
+            1.
+        };
+
+        let scale = Engine::singleton().get_time_scale();
+        Engine::singleton().set_time_scale(scale.lerp(target, dt / scale));
 
         for i in 0..nodes.len() {
             let pos = nodes[i].get_global_position() + nodes[i].get_center_of_mass();

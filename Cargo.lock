@@ -234,6 +234,7 @@ dependencies = [
  "eyre",
  "godot",
  "lazy_static",
+ "meteor",
  "rayon",
  "ron",
  "serde",

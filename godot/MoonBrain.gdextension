@@ -4,13 +4,13 @@ compatibility_minimum = 4.1
 reloadable = true
 
 [libraries]
-linux.debug.x86_64 =     "res://../rust/target/debug/libmoonbrain_gd.so"
-linux.release.x86_64 =   "res://../rust/target/release/libmoonbrain_gd.so"
-windows.debug.x86_64 =   "res://../rust/target/debug/moonbrain_gd.dll"
-windows.release.x86_64 = "res://../rust/target/release/moonbrain_gd.dll"
-macos.debug =            "res://../rust/target/debug/libmoonbrain_gd.dylib"
-macos.release =          "res://../rust/target/release/libmoonbrain_gd.dylib"
-macos.debug.arm64 =      "res://../rust/target/debug/libmoonbrain_gd.dylib"
-macos.release.arm64 =    "res://../rust/target/release/libmoonbrain_gd.dylib"
+linux.debug.x86_64 =     "res://../target/debug/libmoonbrain_gd.so"
+linux.release.x86_64 =   "res://../target/release/libmoonbrain_gd.so"
+windows.debug.x86_64 =   "res://../target/debug/moonbrain_gd.dll"
+windows.release.x86_64 = "res://../target/release/moonbrain_gd.dll"
+macos.debug =            "res://../target/debug/libmoonbrain_gd.dylib"
+macos.release =          "res://../target/release/libmoonbrain_gd.dylib"
+macos.debug.arm64 =      "res://../target/debug/libmoonbrain_gd.dylib"
+macos.release.arm64 =    "res://../target/release/libmoonbrain_gd.dylib"
 
 ; vim: ft=gdresource:

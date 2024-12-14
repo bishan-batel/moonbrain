@@ -9,6 +9,7 @@ look_sensitivity = 1.0
 de_accel = 0.94
 acceleration = 2000.0
 max_speed = 800.0
+rot_speed = 1.0
 motion_mode = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]

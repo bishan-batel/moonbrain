@@ -104,13 +104,23 @@ impl ICharacterBody3D for Player {
 
 #[godot_api]
 impl Player {
-    fn camera(&self) -> Gd<Camera3D> {
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if the camera is not set in the editor
+    #[must_use]
+    pub fn camera(&self) -> Gd<Camera3D> {
         self.camera
             .clone()
             .expect("Camera is not correctly attached to player")
     }
 
-    fn head_pivot(&self) -> Gd<Marker3D> {
+    /// # Panics
+    ///
+    /// Panics if.the marker is not set in the editor
+    #[must_use]
+    pub fn head_pivot(&self) -> Gd<Marker3D> {
         self.pivot
             .clone()
             .expect("Pivot is not correctly attached to player")

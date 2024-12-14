@@ -1,16 +1,8 @@
-use std::str::FromStr;
-
 use godot::{
-    classes::{
-        EditorNode3DGizmo, Engine, IRigidBody3D, PhysicsBody3D, PhysicsDirectBodyState3D,
-        RigidBody3D,
-    },
-    obj::{NewGd, WithBaseField},
+    classes::{IRigidBody3D, PhysicsDirectBodyState3D, RigidBody3D},
+    obj::WithBaseField,
     prelude::*,
 };
-use lazy_static::lazy_static;
-
-use crate::is_tool;
 
 use super::orchestrator::Orchestrator;
 
@@ -53,6 +45,5 @@ impl IRigidBody3D for GravityBody {
         };
 
         self.base_mut().global_translate(-sun_pos);
-        println!("{sun_pos}");
     }
 }
