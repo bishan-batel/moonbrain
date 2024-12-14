@@ -17,6 +17,9 @@ ron = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 eyre = { workspace = true }
+chumsky = "0.9.3"
+tokio = { version = "1.42.0", features = ["full"] }
+logos = "0.14.4"
 
 [lints.clippy]
 all = "warn"
