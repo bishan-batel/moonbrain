@@ -22,6 +22,7 @@ impl Orchestrator {
         self.sun.as_ref().map(|x| x.get_global_position())
     }
 }
+
 #[godot_api]
 impl INode for Orchestrator {
     fn ready(&mut self) {
@@ -31,7 +32,7 @@ impl INode for Orchestrator {
             .done();
     }
 
-    fn process(&mut self, dt: f64) {
+    fn physics_process(&mut self, dt: f64) {
         let mut nodes: Vec<_> = self
             .base()
             .get_tree()
@@ -50,24 +51,32 @@ impl INode for Orchestrator {
         let scale = Engine::singleton().get_time_scale();
         Engine::singleton().set_time_scale(scale.lerp(target, dt / scale));
 
+        let dt = dt as f32;
         for i in 0..nodes.len() {
-            let pos = nodes[i].get_global_position() + nodes[i].get_center_of_mass();
-            let mass = nodes[i].get_mass();
+            let pos = nodes[i].get_global_position();
+            let mass = nodes[i].bind().get_mass();
 
-            let force = nodes
-                .iter()
-                .filter_map(|other| {
-                    let other_mass = other.get_mass();
-                    let other_pos = other.get_global_position();
+            let mut linear_vel = nodes[i].get_constant_linear_velocity();
 
-                    let dir = pos.try_direction_to(other_pos)?;
-                    let dist2 = pos.distance_squared_to(other_pos);
+            for (j, other) in nodes.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
 
-                    Some(self.gravity_constant * dir * other_mass * mass / dist2)
-                })
-                .sum();
+                let other_mass = other.bind().get_mass();
+                let other_pos = other.get_global_position();
 
-            nodes[i].apply_central_force(force);
+                let dir = pos.direction_to(other_pos);
+                let distance = pos.distance_to(other_pos);
+
+                let force = self.gravity_constant * mass * dir * other_mass / (distance * distance);
+                linear_vel += force * dt / mass;
+            }
+
+            let node = &mut nodes[i];
+
+            let mut node = node.bind_mut();
+            node.base_mut().set_constant_linear_velocity(linear_vel);
         }
     }
 }

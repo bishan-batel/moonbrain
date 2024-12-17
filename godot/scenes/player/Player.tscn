@@ -5,11 +5,10 @@
 [node name="Player" type="Player" node_paths=PackedStringArray("pivot", "camera")]
 pivot = NodePath("CameraPivot")
 camera = NodePath("CameraPivot/Camera3D")
-look_sensitivity = 1.0
+look_sensitivity = 0.8
 de_accel = 0.94
 acceleration = 2000.0
 max_speed = 800.0
-rot_speed = 1.0
 motion_mode = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
@@ -20,6 +19,6 @@ transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 
 
 [node name="Camera3D" type="Camera3D" parent="CameraPivot"]
 current = true
-far = 20000.0
+far = 30000.0
 
 [node name="SpotLight3D" type="SpotLight3D" parent="."]
