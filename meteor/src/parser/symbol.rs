@@ -1,11 +1,18 @@
-use std::{ops::Deref, sync::Arc};
+use std::{fmt::Display, ops::Deref, sync::Arc};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Identifier(Arc<str>);
 
 impl Identifier {
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.0
+    }
+}
+
+impl Display for Identifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self.name(), f)
     }
 }
 

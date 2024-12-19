@@ -1,29 +1,39 @@
+use chumsky::span::SimpleSpan;
+
 use crate::parser::{operator::Operator, symbol::Identifier};
 
-#[derive(Debug)]
+pub type Span = SimpleSpan;
+
+pub type Spanned<T> = (T, Span);
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     directives: Vec<Directive>,
-    expressions: Vec<Expression>,
+    expressions: Vec<Spanned<Expression>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Directive {
     name: Identifier,
-    params: Vec<Expression>,
+    params: Vec<Spanned<Expression>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VariableMeta {
     name: Identifier,
     data_type: Option<Identifier>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
+    Error,
+    Nil,
     Ident(Identifier),
     String(String),
     Bool(bool),
     Number(f64),
+
+    Array(Vec<Spanned<Self>>),
 
     Fn {
         name: Identifier,
@@ -32,29 +42,29 @@ pub enum Expression {
 
     Let {
         meta: VariableMeta,
-        initial: Box<Expression>,
+        initial: Box<Spanned<Self>>,
     },
 
     BinaryOp {
         operator: Operator,
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
+        lhs: Box<Spanned<Self>>,
+        rhs: Box<Spanned<Self>>,
     },
 
     UnaryOp {
         operator: Operator,
-        rhs: Box<Expression>,
+        rhs: Box<Spanned<Self>>,
     },
 
     Call {
-        lhs: Box<Expression>,
-        arguments: Vec<Expression>,
+        lhs: Box<Spanned<Self>>,
+        arguments: Vec<Spanned<Self>>,
     },
 }
 
 impl Program {
     #[must_use]
-    pub fn new(directives: Vec<Directive>, expressions: Vec<Expression>) -> Self {
+    pub fn new(directives: Vec<Directive>, expressions: Vec<Spanned<Expression>>) -> Self {
         Self {
             directives,
             expressions,
@@ -66,14 +76,15 @@ impl Program {
         &self.directives
     }
 
-    pub fn expressions(&self) -> &Vec<Expression> {
+    pub fn expressions(&self) -> &Vec<Spanned<Expression>> {
         &self.expressions
     }
 }
 
 impl Directive {
     #[must_use]
-    pub fn new(name: Identifier, params: Vec<Expression>) -> Self {
+    pub fn new(name: impl Into<Identifier>, params: Vec<Spanned<Expression>>) -> Self {
+        let name = name.into();
         Self { name, params }
     }
 
@@ -83,14 +94,15 @@ impl Directive {
     }
 
     #[must_use]
-    pub fn params(&self) -> &Vec<Expression> {
+    pub fn params(&self) -> &Vec<Spanned<Expression>> {
         &self.params
     }
 }
 
 impl VariableMeta {
     #[must_use]
-    fn new(name: Identifier, data_type: Option<Identifier>) -> Self {
+    fn new(name: impl Into<Identifier>, data_type: Option<Identifier>) -> Self {
+        let name = name.into();
         Self { name, data_type }
     }
 

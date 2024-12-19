@@ -108,7 +108,7 @@ pub enum Token<'a> {
     )]
     Identifier(&'a str),
 
-    #[regex(r#""([^"\\]|\\["\\bnfrt]|u[a-fA-F0-9]{4})*""#)]
+    #[regex(r#""([^"\\]|\\["\\bnfrt]|u[a-fA-F0-9]{4})*""#, |lex| &lex.slice()[1..(lex.slice().len() - 1)])]
     String(&'a str),
 
     Error,

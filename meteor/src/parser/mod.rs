@@ -1,5 +1,5 @@
-pub mod ast;
+pub(crate) mod ast;
 mod lexer;
-pub mod operator;
+pub(crate) mod operator;
 mod parser;
-pub mod symbol;
+pub(crate) mod symbol;
