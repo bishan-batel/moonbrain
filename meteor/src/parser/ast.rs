@@ -2,22 +2,28 @@ use chumsky::span::SimpleSpan;
 
 use crate::parser::{operator::Operator, symbol::Identifier};
 
+/// Span information for a given token or AST Expression
 pub type Span = SimpleSpan;
 
+/// A type with associated span
 pub type Spanned<T> = (T, Span);
 
+/// AST Representation of a typical program (*one file*)
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     directives: Vec<Directive>,
     expressions: Vec<Spanned<Expression>>,
 }
 
+/// AST Representation of a Directive
 #[derive(Debug, Clone, PartialEq)]
 pub struct Directive {
     name: Identifier,
     params: Vec<Spanned<Expression>>,
 }
 
+/// AST Representation of a variable declaration,
+/// with a name and optional type (unevaluated, so just a identifier binding if provided)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VariableMeta {
     name: Identifier,
@@ -25,14 +31,33 @@ pub struct VariableMeta {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    arguments: Vec<VariableMeta>,
+    body: Spanned<Expression>,
+}
+
+/// AST Expression
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
+    /// Invalid expression, do not evaluate this case.
     Error,
+
+    /// Nil value literal
     Nil,
+
+    /// Identifier binding
     Ident(Identifier),
+
+    /// String Literal
     String(String),
+
+    /// Boolean Literal
     Bool(bool),
+
+    /// Number Literal
     Number(f64),
 
+    /// Array Literal
     Array(Vec<Spanned<Self>>),
 
     Fn {
@@ -43,6 +68,31 @@ pub enum Expression {
     Let {
         meta: VariableMeta,
         initial: Box<Spanned<Self>>,
+    },
+
+    Block {
+        expressions: Vec<Spanned<Self>>,
+    },
+
+    If {
+        condition: Spanned<Box<Self>>,
+        then: Box<Spanned<Self>>,
+        or_else: Box<Spanned<Self>>,
+    },
+
+    While {
+        condition: Spanned<Box<Self>>,
+        then: Box<Spanned<Self>>,
+    },
+
+    PropertyAccess {
+        lhs: Box<Spanned<Self>>,
+        property: Identifier,
+    },
+
+    ArrayIndex {
+        lhs: Box<Spanned<Self>>,
+        index: Box<Spanned<Self>>,
     },
 
     BinaryOp {
@@ -57,7 +107,7 @@ pub enum Expression {
     },
 
     Call {
-        lhs: Box<Spanned<Self>>,
+        function: Box<Spanned<Self>>,
         arguments: Vec<Spanned<Self>>,
     },
 }

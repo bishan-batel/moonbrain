@@ -98,12 +98,12 @@ pub enum Token<'a> {
     Number(&'a str),
 
     #[regex(
-        r#"@[^0-9\s\[\]\(\)\!\@\#\$\%\^\&\*\-\+\{\}<>\,\.\`\~\/\\\;\:\'\"][^\s\[\]\(\)\!\@\#\$\%\^\&\*\-\+\{\}<>\,\.\`\~\/\\\;\:\'\"]+"#, 
+        r#"@[^0-9\s\[\]\(\)\!\@\#\$\%\^\&\*\-\+\{\}<>\,\.\`\~\/\\\;\:\'\"][^\s\[\]\(\)\!\@\#\$\%\^\&\*\-\+\{\}<>\,\.\`\~\/\\\;\:\'\"]*"#, 
         callback = |lex| &lex.slice()[1..])]
     Directive(&'a str),
 
     #[regex(
-        r#"[^0-9\s\[\]\(\)\!\@\#\$\%\^\&\*\-\+\{\}<>\,\.\`\~\/\\\;\:\'\"][^\s\[\]\(\)\!\@\#\$\%\^\&\*\-\+\{\}<>\,\.\`\~\/\\\;\:\'\"]+"#, 
+        r#"[^0-9\s\[\]\(\)\!\@\#\$\%\^\&\*\-\+\{\}<>\,\.\`\~\/\\\;\:\'\"][^\s\[\]\(\)\!\@\#\$\%\^\&\*\-\+\{\}<>\,\.\`\~\/\\\;\:\'\"]*"#, 
         priority = 0
     )]
     Identifier(&'a str),
@@ -116,7 +116,10 @@ pub enum Token<'a> {
 
 #[cfg(test)]
 mod tests {
+    use chumsky::input::Input;
     use logos::Logos;
+
+    use crate::parser::operator::Operator;
 
     use super::Token;
 
@@ -145,5 +148,46 @@ mod tests {
         let mut lexer = Token::lexer("// bruh moment\n\nnil // hello world \nnil");
         assert_eq!(lexer.next(), Some(Ok(Token::Nil)));
         assert_eq!(lexer.next(), Some(Ok(Token::Nil)));
+    }
+
+    #[test]
+    fn general() {
+        color_eyre::install().unwrap();
+
+        let toks: Vec<_> = Token::lexer(
+            r#"
+            if true {
+                a = (a + 1)
+            } else {
+                b.what = "huh"
+            }
+        "#,
+        )
+        .collect();
+
+        assert_eq!(
+            toks,
+            vec![
+                Ok(Token::If),
+                Ok(Token::Bool("true")),
+                Ok(Token::CurlyBraceOpen),
+                Ok(Token::Identifier("a")),
+                Ok(Token::Operator(Operator::Assign)),
+                Ok(Token::ParenOpen),
+                Ok(Token::Identifier("a")),
+                Ok(Token::Operator(Operator::Add)),
+                Ok(Token::Number("1")),
+                Ok(Token::ParenClosed),
+                Ok(Token::CurlyBraceClose),
+                Ok(Token::Else),
+                Ok(Token::CurlyBraceOpen),
+                Ok(Token::Identifier("b")),
+                Ok(Token::Dot),
+                Ok(Token::Identifier("what")),
+                Ok(Token::Operator(Operator::Assign)),
+                Ok(Token::String("huh")),
+                Ok(Token::CurlyBraceClose),
+            ]
+        );
     }
 }
