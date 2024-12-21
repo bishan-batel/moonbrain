@@ -123,8 +123,8 @@ shader_parameter/star_hue_offset = 0.328
 shader_parameter/star_intensity = 0.08
 shader_parameter/star_twinkle_speed = 0.35
 shader_parameter/star_twinkle_intensity = 0.2
-shader_parameter/layer_scale = 20.0
-shader_parameter/layer_scale_step = 10.0
+shader_parameter/layer_scale = 11.003
+shader_parameter/layer_scale_step = 30.625
 shader_parameter/layers_count = 3
 
 [resource]

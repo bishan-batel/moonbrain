@@ -10,6 +10,7 @@ use godot::prelude::*;
 
 pub mod bodies;
 pub mod characters;
+pub mod planet;
 
 struct MoonBrain;
 

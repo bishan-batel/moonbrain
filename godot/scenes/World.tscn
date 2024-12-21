@@ -1,36 +1,8 @@
-[gd_scene load_steps=12 format=3 uid="uid://dh8yhornwl7bg"]
+[gd_scene load_steps=9 format=3 uid="uid://dh8yhornwl7bg"]
 
 [ext_resource type="PackedScene" uid="uid://vs442rcjp7rw" path="res://scenes/player/Player.tscn" id="1_4atwn"]
-[ext_resource type="Texture2D" uid="uid://hc78yk4ikwcr" path="res://milky_way.jpg" id="1_sxlf3"]
+[ext_resource type="PackedScene" uid="uid://c47gm0ftx5xvw" path="res://scenes/enviornment.tscn" id="1_hcvji"]
 [ext_resource type="Texture2D" uid="uid://df34x12u842el" path="res://scenes/sun_texture.tres" id="2_vt4ll"]
-
-[sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_rlf8m"]
-mie_coefficient = 0.0
-mie_eccentricity = -1.0
-turbidity = 0.0
-sun_disk_scale = 0.0
-night_sky = ExtResource("1_sxlf3")
-
-[sub_resource type="Sky" id="Sky_bpbb0"]
-sky_material = SubResource("PhysicalSkyMaterial_rlf8m")
-process_mode = 3
-
-[sub_resource type="Environment" id="Environment_qucon"]
-background_mode = 2
-sky = SubResource("Sky_bpbb0")
-sky_rotation = Vector3(-6.28319, 0, 0)
-ambient_light_source = 2
-ambient_light_color = Color(1, 1, 1, 1)
-ambient_light_energy = 0.1
-tonemap_mode = 2
-glow_enabled = true
-glow_levels/1 = 4.92
-glow_levels/6 = 1.54
-glow_normalized = true
-glow_intensity = 1.63
-glow_strength = 0.38
-glow_blend_mode = 1
-glow_hdr_threshold = 1.56
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pwe2w"]
 albedo_texture = ExtResource("2_vt4ll")
@@ -75,8 +47,7 @@ radius = 80.0
 gravity_constant = 1000.0
 sun = NodePath("../Sun")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_qucon")
+[node name="WorldEnvironment" parent="." instance=ExtResource("1_hcvji")]
 
 [node name="Player" parent="." instance=ExtResource("1_4atwn")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 512.509, 1582.86, 2099.18)

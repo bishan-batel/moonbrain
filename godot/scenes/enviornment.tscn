@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3 uid="uid://c47gm0ftx5xvw"]
+
+[ext_resource type="Sky" uid="uid://cakqgi622ndox" path="res://scenes/procedural_sky.tres" id="1_jjfi5"]
+
+[sub_resource type="Environment" id="Environment_qucon"]
+background_mode = 2
+sky = ExtResource("1_jjfi5")
+sky_rotation = Vector3(-6.28319, 0, 0)
+ambient_light_source = 2
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 0.1
+tonemap_mode = 2
+glow_enabled = true
+glow_levels/1 = 4.92
+glow_levels/6 = 1.54
+glow_normalized = true
+glow_intensity = 1.63
+glow_strength = 0.38
+glow_blend_mode = 1
+glow_hdr_threshold = 1.56
+
+[node name="WorldEnvironment" type="WorldEnvironment"]
+environment = SubResource("Environment_qucon")

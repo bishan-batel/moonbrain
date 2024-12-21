@@ -11,7 +11,7 @@ edition.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-godot = "0.2.1"
+godot = { version = "0.2.1", features = ["register-docs"] }
 lazy_static = { workspace = true }
 rayon = { workspace = true }
 ron = { workspace = true }
@@ -22,4 +22,4 @@ meteor = { path = "../meteor/" }
 
 [lints.clippy]
 all = "warn"
-pedantic = "warn"
+pedantic = "allow"

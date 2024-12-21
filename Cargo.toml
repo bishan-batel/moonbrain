@@ -12,6 +12,7 @@ rust-version = "1.70"
 
 [workspace.dependencies]
 eyre = { version = "0.6.12" }
+color-eyre = "0.6"
 lazy_static = "1.5.0"
 rayon = "1.10.0"
 ron = "0.8.1"
