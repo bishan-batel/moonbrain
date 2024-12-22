@@ -116,7 +116,7 @@ pub enum Token<'a> {
 
 #[cfg(test)]
 mod tests {
-    use chumsky::input::Input;
+    
     use logos::Logos;
 
     use crate::parser::operator::Operator;

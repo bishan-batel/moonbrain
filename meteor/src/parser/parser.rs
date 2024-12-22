@@ -1,6 +1,6 @@
 use chumsky::{input::ValueInput, prelude::*};
 
-use crate::parser::{ast::Expression, lexer::Token, symbol::Identifier};
+use crate::parser::{ast::Expression, lexer::Token};
 
 use super::{
     ast::{Span, Spanned},

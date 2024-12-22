@@ -1,2 +1,2 @@
 pub mod celestial;
-pub mod generator;
+pub mod sphere;
