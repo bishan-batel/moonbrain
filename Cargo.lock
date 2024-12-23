@@ -85,6 +85,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bytebuffer"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2618ff1f07e000264e355904bff5c0527091fcbad883ff7f71383c5428915f4b"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "bytemuck"
 version = "1.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -103,6 +112,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
@@ -479,6 +494,7 @@ dependencies = [
 name = "moonbrain-gd"
 version = "0.0.1"
 dependencies = [
+ "bytebuffer",
  "bytemuck",
  "eyre",
  "godot",

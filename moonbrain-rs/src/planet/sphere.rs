@@ -57,10 +57,8 @@ impl OctoSphere {
         surface_tool.begin(PrimitiveType::TRIANGLES);
 
         for v in self.verticies.iter() {
-            let v = v.normalized_or_zero();
-            // let v = v.rotated(Vector3::UP, f32::consts::TAU / self.detail as f32);
-
             let uv = {
+                let v = v.normalized_or_zero();
                 let theta = v.x.atan2(v.z) / f32::consts::TAU + 0.5;
                 let height = 1. - (v.y.asin() / f32::consts::PI + 0.5);
 
@@ -68,7 +66,7 @@ impl OctoSphere {
             };
 
             surface_tool.set_uv(uv);
-            surface_tool.add_vertex(v);
+            surface_tool.add_vertex(*v);
         }
 
         for Triangle([v0, v1, v2]) in self.triangles.iter() {
@@ -215,7 +213,6 @@ impl SphereGenerator {
                 };
 
                 let tri = verts.map(|i| vertex_map[i]);
-                println!("{tri:?}");
                 self.triangles.push(Triangle(tri));
             }
         }

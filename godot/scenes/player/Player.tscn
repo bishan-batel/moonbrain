@@ -2,23 +2,26 @@
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_ugd56"]
 
-[node name="Player" type="Player" node_paths=PackedStringArray("pivot", "camera")]
+[node name="Player" type="Player" node_paths=PackedStringArray("pivot", "camera", "spotlight")]
 pivot = NodePath("CameraPivot")
 camera = NodePath("CameraPivot/Camera3D")
+spotlight = NodePath("CameraPivot/SpotLight3D")
 look_sensitivity = 0.8
-de_accel = 0.94
-acceleration = 2000.0
-max_speed = 800.0
+de_accel = 0.96
+acceleration = 1000.0
+max_speed = 150.0
 motion_mode = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("SphereShape3D_ugd56")
 
 [node name="CameraPivot" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0)
+
+[node name="SpotLight3D" type="SpotLight3D" parent="CameraPivot"]
+light_energy = 2.0
+shadow_enabled = true
+spot_range = 1000.0
 
 [node name="Camera3D" type="Camera3D" parent="CameraPivot"]
 current = true
-far = 30000.0
-
-[node name="SpotLight3D" type="SpotLight3D" parent="."]
+far = 8000.0

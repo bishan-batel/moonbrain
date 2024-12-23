@@ -18,6 +18,9 @@ pub struct Player {
     camera: Option<Gd<Camera3D>>,
 
     #[export]
+    spotlight: Option<Gd<Node3D>>,
+
+    #[export]
     look_sensitivity: f32,
 
     #[export]
@@ -49,6 +52,13 @@ impl ICharacterBody3D for Player {
 
         if input.is_action_just_pressed("ui_cancel") {
             input.set_mouse_mode(MouseMode::VISIBLE);
+        }
+
+        if input.is_action_just_pressed("toggle_light") {
+            if let Some(light) = &mut self.spotlight {
+                let on = light.is_visible();
+                light.set_visible(!on);
+            }
         }
 
         self.base_mut().move_and_slide();

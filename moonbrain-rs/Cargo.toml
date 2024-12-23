@@ -20,6 +20,7 @@ thiserror = { workspace = true }
 eyre = { workspace = true }
 meteor = { path = "../meteor/" }
 bytemuck = { version = "1.21.0", features = ["derive"] }
+bytebuffer = "2.3.0"
 
 [lints.clippy]
 all = "warn"
