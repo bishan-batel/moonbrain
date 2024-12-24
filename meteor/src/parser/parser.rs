@@ -19,7 +19,6 @@ where
         let literal = select! {
             Token::Bool(b) => Expression::Bool(b.parse().unwrap()),
             Token::Number(n)=> Expression::Number(n.parse().unwrap()),
-            Token::Identifier(name) => Expression::Ident(name.into()),
             Token::String(name) => Expression::String(name.into())
         }
         .labelled("value");
@@ -38,22 +37,6 @@ where
             .delimited_by(just(Token::BracketOpen), just(Token::BracketClose))
             .map(Expression::Array);
 
-        let property_access = {
-            expr.clone().foldl_with(
-                just(Token::Dot).then(ident).repeated(),
-                |lhs, (_, rhs), e| {
-                    (
-                        Expression::PropertyAccess {
-                            lhs: Box::new(lhs),
-                            property: rhs.into(),
-                        },
-                        e.span(),
-                    )
-                },
-            )
-        }
-        .boxed();
-
         let atom = literal
             // identifier (variable)
             .or(ident.map(|x| Expression::Ident(x.into())))
@@ -64,7 +47,6 @@ where
             .or(expr
                 .clone()
                 .delimited_by(just(Token::ParenOpen), just(Token::ParenClosed)))
-            .or(property_access)
             // Attempt to recover anything that looks like a parenthesised expression but contains errors
             .recover_with(via_parser(nested_delimiters(
                 Token::ParenOpen,
@@ -87,7 +69,23 @@ where
             )))
             .boxed();
 
-        let call = atom.foldl_with(
+        let property_access = {
+            atom.foldl_with(
+                just(Token::Dot).then(ident).repeated(),
+                |lhs, (_, rhs), e| {
+                    (
+                        Expression::PropertyAccess {
+                            lhs: Box::new(lhs),
+                            property: rhs.into(),
+                        },
+                        e.span(),
+                    )
+                },
+            )
+        }
+        .boxed();
+
+        let call = property_access.foldl_with(
             items
                 .delimited_by(just(Token::ParenOpen), just(Token::ParenClosed))
                 .repeated(),
@@ -228,14 +226,39 @@ mod tests {
                 }
             );
 
-            // let a = parse("x = me(true, false)").unwrap();
-            // assert_eq!(
-            //     a.0,
-            //     Expression::Call {
-            //         function: Box::new((Expression::Ident("me".into()), SimpleSpan::new(0, 2))),
-            //         arguments: vec![]
-            //     }
-            // );
+            let a = parse("x = me(true, false)").unwrap();
+            assert_eq!(
+                a.0,
+                Expression::BinaryOp {
+                    lhs: Box::new((Expression::Ident("x".into()), SimpleSpan::new(0, 1))),
+                    operator: Operator::Assign,
+                    rhs: Box::new((
+                        Expression::Call {
+                            function: Box::new((
+                                Expression::Ident("me".into()),
+                                SimpleSpan::new(4, 6)
+                            )),
+                            arguments: vec![
+                                (Expression::Bool(true), SimpleSpan::new(7, 11)),
+                                (Expression::Bool(false), SimpleSpan::new(13, 18))
+                            ]
+                        },
+                        SimpleSpan::new(4, 19)
+                    ))
+                }
+            );
+        }
+
+        #[test]
+        fn call_expr_noarg() {
+            let a = parse("me()").unwrap();
+            assert_eq!(
+                a.0,
+                Expression::Call {
+                    function: Box::new((Expression::Ident("me".into()), SimpleSpan::new(0, 2))),
+                    arguments: vec![]
+                }
+            );
         }
     }
 }

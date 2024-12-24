@@ -96,8 +96,8 @@ pub enum Expression {
     },
 
     BinaryOp {
-        operator: Operator,
         lhs: Box<Spanned<Self>>,
+        operator: Operator,
         rhs: Box<Spanned<Self>>,
     },
 
