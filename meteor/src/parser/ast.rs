@@ -1,6 +1,12 @@
-use chumsky::span::SimpleSpan;
+use std::rc::Rc;
 
-use crate::parser::{operator::Operator, symbol::Identifier};
+use chumsky::span::SimpleSpan;
+use serde::Serialize;
+
+use crate::{
+    parser::{operator::Operator, symbol::Identifier},
+    runtime::memory::Mutability,
+};
 
 /// Span information for a given token or AST Expression
 pub type Span = SimpleSpan;
@@ -9,35 +15,42 @@ pub type Span = SimpleSpan;
 pub type Spanned<T> = (T, Span);
 
 /// AST Representation of a typical program (*one file*)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Program {
-    directives: Vec<Directive>,
+    directives: Vec<Spanned<Directive>>,
     expressions: Vec<Spanned<Expression>>,
 }
 
 /// AST Representation of a Directive
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Directive {
     name: Identifier,
     params: Vec<Spanned<Expression>>,
 }
 
-/// AST Representation of a variable declaration,
-/// with a name and optional type (unevaluated, so just a identifier binding if provided)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VariableMeta {
-    name: Identifier,
-    data_type: Option<Identifier>,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub enum Type {
+    Named(Identifier),
+    Generic(Box<Type>, Vec<Identifier>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// AST Representation of a variable declaration,
+/// with a name and optional type (unevaluated, so just a identifier binding if provided)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct VariableMeta {
+    name: Identifier,
+    data_type: Option<Spanned<Type>>,
+    mutability: Mutability,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Function {
-    arguments: Vec<VariableMeta>,
+    arguments: Vec<Spanned<VariableMeta>>,
     body: Spanned<Expression>,
 }
 
 /// AST Expression
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Expression {
     /// Invalid expression, do not evaluate this case.
     Error,
@@ -60,28 +73,23 @@ pub enum Expression {
     /// Array Literal
     Array(Vec<Spanned<Self>>),
 
-    Fn {
-        name: Identifier,
-        body: Identifier,
-    },
+    Func(Box<Function>),
 
     Let {
-        meta: VariableMeta,
-        initial: Box<Spanned<Self>>,
+        meta: Spanned<VariableMeta>,
+        init: Box<Spanned<Self>>,
     },
 
-    Block {
-        expressions: Vec<Spanned<Self>>,
-    },
+    Block(Vec<Spanned<Self>>),
 
     If {
-        condition: Spanned<Box<Self>>,
+        condition: Box<Spanned<Self>>,
         then: Box<Spanned<Self>>,
         or_else: Box<Spanned<Self>>,
     },
 
     While {
-        condition: Spanned<Box<Self>>,
+        condition: Box<Spanned<Self>>,
         then: Box<Spanned<Self>>,
     },
 
@@ -112,9 +120,23 @@ pub enum Expression {
     },
 }
 
+impl Function {
+    pub fn new(arguments: Vec<Spanned<VariableMeta>>, body: Spanned<Expression>) -> Self {
+        Self { arguments, body }
+    }
+
+    pub fn arguments(&self) -> &[(VariableMeta, SimpleSpan<usize, ()>)] {
+        &self.arguments
+    }
+
+    pub fn body(&self) -> &Spanned<Expression> {
+        &self.body
+    }
+}
+
 impl Program {
     #[must_use]
-    pub fn new(directives: Vec<Directive>, expressions: Vec<Spanned<Expression>>) -> Self {
+    pub fn new(directives: Vec<Spanned<Directive>>, expressions: Vec<Spanned<Expression>>) -> Self {
         Self {
             directives,
             expressions,
@@ -122,7 +144,7 @@ impl Program {
     }
 
     #[must_use]
-    pub fn directives(&self) -> &Vec<Directive> {
+    pub fn directives(&self) -> &Vec<Spanned<Directive>> {
         &self.directives
     }
 
@@ -151,28 +173,25 @@ impl Directive {
 
 impl VariableMeta {
     #[must_use]
-    fn new(name: impl Into<Identifier>, data_type: Option<Identifier>) -> Self {
-        let name = name.into();
-        Self { name, data_type }
-    }
-
-    #[must_use]
-    pub fn typed(name: Identifier, data_type: Identifier) -> Self {
-        Self::new(name, Some(data_type))
-    }
-
-    #[must_use]
-    pub fn untyped(name: Identifier) -> Self {
-        Self::new(name, None)
-    }
-
-    #[must_use]
-    pub fn data_type(&self) -> Option<&Identifier> {
-        self.data_type.as_ref()
+    pub fn new(name: Identifier, data_type: Option<Spanned<Type>>, mutability: Mutability) -> Self {
+        Self {
+            name,
+            data_type,
+            mutability,
+        }
     }
 
     #[must_use]
     pub fn name(&self) -> &Identifier {
         &self.name
+    }
+
+    #[must_use]
+    pub fn data_type(&self) -> Option<&Spanned<Type>> {
+        self.data_type.as_ref()
+    }
+
+    pub fn mutablity(&self) -> Mutability {
+        self.mutability
     }
 }

@@ -1,20 +1,33 @@
+use std::{
+    borrow::Cow,
+    fmt::{Display, Write},
+    rc::Rc,
+};
 
+use crate::parser::{
+    ast::{self, Expression, Spanned, VariableMeta},
+    symbol::Identifier,
+};
 
-#[derive(Debug, Hash, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TypeInfo {
+use super::memory::{MemEnviornment, Memory};
+
+#[derive(Debug, Default, Hash, Clone, PartialEq, Eq)]
+pub enum Type {
+    #[default]
     Any,
     String,
     Bool,
     Number,
     Nil,
     Dictionary {
-        key: Box<TypeInfo>,
-        value: Box<TypeInfo>,
+        key: Box<Type>,
+        value: Box<Type>,
     },
-    Array(Box<TypeInfo>),
+    User(Identifier, Vec<Type>),
+    Array(Box<Type>),
 }
 
-impl TypeInfo {
+impl Type {
     pub fn array() -> Self {
         Self::Array(Box::new(Self::Any))
     }
@@ -28,13 +41,42 @@ impl TypeInfo {
 
     pub fn default(&self) -> Value {
         match self {
-            TypeInfo::Any | TypeInfo::Nil => Value::Nil,
-            TypeInfo::String => "".into(),
-            TypeInfo::Bool => false.into(),
-            TypeInfo::Number => 0.into(),
-            TypeInfo::Dictionary { .. } => todo!("Dictionaries are not supported yet"),
-            TypeInfo::Array(..) => todo!("Arrays are not supported yet"),
+            Type::Any | Type::Nil => Value::Nil,
+            Type::String => "".into(),
+            Type::Bool => false.into(),
+            Type::Number => 0.into(),
+            Type::Dictionary { .. } => todo!("Dictionaries are not supported yet"),
+            Type::Array(..) => todo!("Arrays are not supported yet"),
+            Type::User(..) => todo!("Custom user types are not supported"),
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Function {
+    inner: Rc<ast::Function>,
+    scope: Memory,
+}
+
+impl Function {
+    pub fn new(inner: Rc<ast::Function>, scope: Memory) -> Self {
+        Self { inner, scope }
+    }
+
+    pub fn inner(&self) -> &Rc<ast::Function> {
+        &self.inner
+    }
+
+    pub fn scope(&self) -> &Memory {
+        &self.scope
+    }
+
+    pub fn scope_mut(&mut self) -> &mut Memory {
+        &mut self.scope
+    }
+
+    pub fn set_scope(&mut self, scope: Memory) {
+        self.scope = scope;
     }
 }
 
@@ -43,22 +85,39 @@ pub enum Value {
     String(String),
     Bool(bool),
     Number(f64),
+    Array(Rc<Vec<Value>>),
+    Function(Rc<Function>),
     Nil,
 }
 
 impl Value {
-    pub fn is_type(&self, data_type: &TypeInfo) -> bool {
+    pub fn is_type(&self, data_type: &Type) -> bool {
         match (self, data_type) {
-            (_, TypeInfo::Any)
-            | (Value::String(_), TypeInfo::String)
-            | (Value::Bool(_), TypeInfo::Bool)
-            | (Value::Number(_), TypeInfo::Number)
-            | (Value::Nil, TypeInfo::Nil) => true,
+            (_, Type::Any)
+            | (Value::String(_), Type::String)
+            | (Value::Bool(_), Type::Bool)
+            | (Value::Number(_), Type::Number)
+            | (Value::Nil, Type::Nil) => true,
             _ => false,
         }
     }
 
-    pub fn try_coerce(self, into: &TypeInfo) -> Option<Value> {
+    pub fn truthy(&self) -> bool {
+        match self {
+            Value::String(s) => !s.is_empty(),
+            Value::Bool(b) => *b,
+
+            Value::Number(b) => *b != 0.,
+            Value::Array(_) | Value::Function(_) => true,
+            Value::Nil => false,
+        }
+    }
+
+    pub fn falsey(&self) -> bool {
+        return !self.truthy();
+    }
+
+    pub fn try_coerce(self, into: &Type) -> Option<Value> {
         if self.is_type(into) {
             return Some(self);
         }
@@ -74,6 +133,17 @@ impl Value {
             (_, Self::Nil) => Self::Nil,
             _ => return None,
         })
+    }
+
+    pub fn get_type(&self) -> Type {
+        match self {
+            Value::String(_) => Type::String,
+            Value::Bool(_) => Type::Bool,
+            Value::Number(_) => Type::Number,
+            Value::Array(..) => Type::Array(Default::default()),
+            Value::Function(..) => todo!("Functions have no types"),
+            Value::Nil => Type::Nil,
+        }
     }
 }
 
@@ -102,5 +172,33 @@ from_value!(f64, Number);
 impl From<()> for Value {
     fn from(_: ()) -> Self {
         Self::Nil
+    }
+}
+
+impl PartialEq for Function {
+    // two functions are never equal
+    fn eq(&self, _: &Self) -> bool {
+        false
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::String(str) => f.write_str(str),
+            Value::Bool(b) => f.write_fmt(format_args!("{b}")),
+            Value::Number(n) => f.write_fmt(format_args!("{n}")),
+            Value::Array(values) => {
+                f.write_char('[')?;
+
+                for val in values.iter() {
+                    val.fmt(f)?;
+                    f.write_char(',')?;
+                }
+                f.write_char(']')
+            }
+            Value::Function(..) => f.write_str("[function]"),
+            Value::Nil => f.write_str("nil"),
+        }
     }
 }

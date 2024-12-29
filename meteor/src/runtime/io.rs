@@ -1,17 +1,17 @@
 use tokio::sync::watch;
 
-use super::value::{TypeInfo, Value};
+use super::value::{Type, Value};
 
 #[derive(Debug)]
 pub struct Socket {
-    data_type: TypeInfo,
+    data_type: Type,
     receiver: watch::Receiver<Value>,
     transceiver: watch::Sender<Value>,
 }
 
 #[derive(Debug)]
 pub struct Sink {
-    data_type: TypeInfo,
+    data_type: Type,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -24,7 +24,7 @@ pub enum WireError {
 }
 
 impl Socket {
-    pub fn new(data_type: TypeInfo) -> Self {
+    pub fn new(data_type: Type) -> Self {
         let (transceiver, receiver) = watch::channel(data_type.default());
 
         Self {

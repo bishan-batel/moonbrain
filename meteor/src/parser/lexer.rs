@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use logos::Logos;
 
 use crate::parser::operator::Operator;
@@ -36,11 +38,18 @@ pub enum Token<'a> {
     #[token(".")]
     Dot,
 
+    #[token(";")]
+    Semicolon,
+
+    #[token("=>")]
+    FatArrow,
+
     #[token("-",   |_| Operator::Sub)]
     #[token("+",   |_| Operator::Add)]
     #[token("*",   |_| Operator::Mul)]
     #[token("/",   |_| Operator::Div)]
     #[token("%",   |_| Operator::Mod)]
+    #[token("mod", |_| Operator::Mod)]
     #[token("=",   |_| Operator::Assign)]
     #[token("not", |_| Operator::Not)]
     #[token("or",  |_| Operator::Or)]
@@ -89,6 +98,9 @@ pub enum Token<'a> {
     Var,
 
     #[token("func", priority = 100)]
+    #[token("fn", priority = 100)]
+    #[token("function", priority = 100)]
+    #[token("fun)", priority = 100)]
     Func,
 
     #[token("entrypoint", priority = 100)]
@@ -114,9 +126,47 @@ pub enum Token<'a> {
     Error,
 }
 
+impl Display for Token<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Bool(state) => f.write_str(state),
+            Token::CurlyBraceOpen => f.write_str("{"),
+            Token::CurlyBraceClose => f.write_str("}"),
+            Token::BracketOpen => f.write_str("["),
+            Token::BracketClose => f.write_str("]"),
+            Token::ParenOpen => f.write_str("("),
+            Token::ParenClosed => f.write_str(")"),
+            Token::Colon => f.write_str(":"),
+            Token::Comma => f.write_str(","),
+            Token::Dot => f.write_str("."),
+            Token::Semicolon => f.write_str(";"),
+            Token::FatArrow => f.write_str("=>"),
+            Token::Operator(operator) => f.write_fmt(format_args!("{operator}")),
+            Token::Nil => f.write_str("nil"),
+            Token::Return => f.write_str("return"),
+            Token::If => f.write_str("if"),
+            Token::Unless => f.write_str("unless"),
+            Token::Else => f.write_str("else"),
+            Token::While => f.write_str("while"),
+            Token::Until => f.write_str("until"),
+            Token::For => f.write_str("for"),
+            Token::In => f.write_str("in"),
+            Token::Let => f.write_str("let"),
+            Token::Var => f.write_str("var"),
+            Token::Func => f.write_str("func"),
+            Token::Entrypoint => f.write_str("entrypoint"),
+            Token::Number(num) => f.write_fmt(format_args!("{num}")),
+            Token::Directive(dir) => f.write_fmt(format_args!("@{dir}")),
+            Token::Identifier(ident) => f.write_fmt(format_args!("{ident}")),
+            Token::String(str) => f.write_fmt(format_args!("{str:#?}")),
+            Token::Error => f.write_str("[ERROR]"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    
+
     use logos::Logos;
 
     use crate::parser::operator::Operator;

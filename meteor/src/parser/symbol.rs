@@ -1,7 +1,18 @@
 use std::{fmt::Display, ops::Deref, sync::Arc};
 
+use serde::Serialize;
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Identifier(Arc<str>);
+
+impl Serialize for Identifier {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
 
 impl Identifier {
     #[must_use]

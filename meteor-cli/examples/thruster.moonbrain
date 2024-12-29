@@ -1,0 +1,12 @@
+@name("ThrusterControl")
+@inputs(bottom_thruster: Thruster, gas_tank: GasTank)
+
+
+func update() {
+	let a = func(x) => 2+x
+
+	if inputs.gas_tank.fuel_level < 10 {
+		Chip.shutdown("bruh")
+	}
+}
+

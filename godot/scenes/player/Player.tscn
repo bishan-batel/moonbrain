@@ -24,4 +24,4 @@ spot_range = 1000.0
 
 [node name="Camera3D" type="Camera3D" parent="CameraPivot"]
 current = true
-far = 8000.0
+far = 50000.0

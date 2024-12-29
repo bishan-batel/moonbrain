@@ -1,11 +1,44 @@
 use chumsky::{input::ValueInput, prelude::*};
 
-use crate::parser::{ast::Expression, lexer::Token};
+use crate::{
+    parser::{
+        ast::{Expression, Function, Type, VariableMeta},
+        lexer::Token,
+        symbol::Identifier,
+    },
+    runtime::memory::Mutability,
+};
 
 use super::{
-    ast::{Span, Spanned},
+    ast::{Directive, Program, Span, Spanned},
     operator::Operator,
 };
+
+#[allow(clippy::too_many_lines)]
+#[must_use]
+pub fn program_parser<'src, I>(
+) -> impl Parser<'src, I, Program, extra::Err<Rich<'src, Token<'src>, Span>>> + Clone
+where
+    I: ValueInput<'src, Token = Token<'src>, Span = Span>,
+{
+    let expr = expr_parser::<'src, I>();
+
+    let directive = select! {
+        Token::Directive(dir) => Directive::new(dir, vec![])
+    }
+    .map_with(|x, e| (x, e.span()));
+
+    let directives = directive.repeated().collect::<Vec<_>>();
+
+    let expressions = expr
+        .then_ignore(just(Token::Semicolon).or_not())
+        .repeated()
+        .collect::<Vec<_>>();
+
+    directives
+        .then(expressions)
+        .map_with(|(directives, exprs), _| Program::new(directives, exprs))
+}
 
 #[allow(clippy::too_many_lines)]
 #[must_use]
@@ -19,11 +52,28 @@ where
         let literal = select! {
             Token::Bool(b) => Expression::Bool(b.parse().unwrap()),
             Token::Number(n)=> Expression::Number(n.parse().unwrap()),
-            Token::String(name) => Expression::String(name.into())
+            Token::String(name) => Expression::String(name.into()),
+            Token::Nil => Expression::Nil
         }
         .labelled("value");
 
-        let ident = select! { Token::Identifier(ident) => ident }.labelled("identifier");
+        let ident =
+            select! { Token::Identifier(ident) => Identifier::from(ident) }.labelled("identifier");
+
+        let r#type = ident
+            .clone()
+            .map_with(|ident, e| (Type::Named(ident), e.span()));
+
+        let variable_declare = ident
+            .clone()
+            .then(just(Token::Colon).ignore_then(r#type).or_not())
+            .map_with(|(name, r#type), e| {
+                (
+                    VariableMeta::new(name, r#type, Mutability::Mutable),
+                    e.span(),
+                )
+            })
+            .boxed();
 
         let items = expr
             .clone()
@@ -32,6 +82,59 @@ where
             .allow_trailing()
             .collect::<Vec<_>>();
 
+        let block = expr
+            .clone()
+            .then_ignore(just(Token::Semicolon).or_not())
+            .repeated()
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::CurlyBraceOpen), just(Token::CurlyBraceClose))
+            .map_with(|expressions, e| (Expression::Block(expressions), e.span()))
+            .boxed();
+
+        let lambda = just(Token::Func)
+            .ignore_then(
+                // single/no argument like func x => x*2
+                variable_declare
+                    .clone()
+                    .map(|arg| vec![arg])
+                    // or args in parenthesis like func(a, b) => a+b
+                    .or(variable_declare
+                        .clone()
+                        .separated_by(just(Token::Comma))
+                        .allow_leading()
+                        .allow_trailing()
+                        .collect::<Vec<_>>()
+                        .delimited_by(just(Token::ParenOpen), just(Token::ParenClosed)))
+                    .or_not(),
+            )
+            .then(
+                block
+                    .clone()
+                    .or(just(Token::FatArrow).ignore_then(expr.clone())),
+            )
+            .map_with(|(args, expr), e| {
+                (
+                    Expression::Func(Box::new(Function::new(args.unwrap_or_default(), expr))),
+                    e.span(),
+                )
+            })
+            .boxed();
+
+        let let_expr = just(Token::Let)
+            .ignore_then(variable_declare.clone())
+            .then_ignore(just(Token::Operator(Operator::Assign)))
+            .then(expr.clone())
+            .map_with(|(meta, init), e| {
+                (
+                    Expression::Let {
+                        meta,
+                        init: Box::new(init),
+                    },
+                    e.span(),
+                )
+            })
+            .boxed();
+
         let list = items
             .clone()
             .delimited_by(just(Token::BracketOpen), just(Token::BracketClose))
@@ -39,10 +142,13 @@ where
 
         let atom = literal
             // identifier (variable)
-            .or(ident.map(|x| Expression::Ident(x.into())))
+            .or(ident.map(|x| Expression::Ident(x)))
             // list(s)
             .or(list)
             .map_with(|expr, e| (expr, e.span()))
+            .or(lambda)
+            .or(let_expr)
+            .or(block.clone())
             // normal expr but surrounded by parens
             .or(expr
                 .clone()
@@ -71,12 +177,12 @@ where
 
         let property_access = {
             atom.foldl_with(
-                just(Token::Dot).then(ident).repeated(),
-                |lhs, (_, rhs), e| {
+                just(Token::Dot).ignore_then(ident).repeated(),
+                |lhs, property, e| {
                     (
                         Expression::PropertyAccess {
                             lhs: Box::new(lhs),
-                            property: rhs.into(),
+                            property,
                         },
                         e.span(),
                     )
@@ -85,27 +191,48 @@ where
         }
         .boxed();
 
-        let call = property_access.foldl_with(
-            items
-                .delimited_by(just(Token::ParenOpen), just(Token::ParenClosed))
-                .repeated(),
-            |func, arguments, e| {
-                (
-                    Expression::Call {
-                        function: Box::new(func),
-                        arguments,
-                    },
-                    e.span(),
-                )
-            },
-        );
+        let call = property_access
+            .foldl_with(
+                items
+                    .delimited_by(just(Token::ParenOpen), just(Token::ParenClosed))
+                    .repeated(),
+                |func, arguments, e| {
+                    (
+                        Expression::Call {
+                            function: Box::new(func),
+                            arguments,
+                        },
+                        e.span(),
+                    )
+                },
+            )
+            .boxed();
+
+        let array_index = call
+            .foldl_with(
+                expr.clone()
+                    .delimited_by(just(Token::BracketOpen), just(Token::BracketClose))
+                    .repeated(),
+                |lhs, idx, e| {
+                    (
+                        Expression::ArrayIndex {
+                            lhs: Box::new(lhs),
+                            index: Box::new(idx),
+                        },
+                        e.span(),
+                    )
+                },
+            )
+            .boxed()
+            .labelled("array index")
+            .as_context();
 
         let op = |operator: Operator| select! { Token::Operator(op) if op == operator => op };
 
         let unary = op(Operator::Sub)
             .or(op(Operator::Not))
             .repeated()
-            .foldr_with(call, |op, rhs, e| {
+            .foldr_with(array_index, |op, rhs, e| {
                 (
                     Expression::UnaryOp {
                         operator: op,
@@ -157,11 +284,48 @@ where
         );
         let and = binary!(comparisons, op(Operator::And).or(op(Operator::Nor)));
         let or = binary!(and, op(Operator::Or));
-        let assignment = binary!(or, op(Operator::Assign));
+
+        let assignment = binary!(or, op(Operator::Assign)).labelled("assignment");
 
         let inline_expr = assignment.labelled("expression").as_context();
 
-        inline_expr
+        let while_expr = just(Token::While)
+            .ignore_then(expr.clone())
+            .then(block.clone())
+            .map_with(|(cond, body), e| {
+                (
+                    Expression::While {
+                        condition: Box::new(cond),
+                        then: Box::new(body),
+                    },
+                    e.span(),
+                )
+            })
+            .boxed();
+
+        let if_expr = recursive(|if_expr| {
+            just(Token::If)
+                .ignore_then(expr.clone())
+                .then(block.clone())
+                .then(
+                    just(Token::Else)
+                        .ignore_then(block.clone().or(if_expr))
+                        .or_not(),
+                )
+                .map_with(|((cond, body), or_else), e| {
+                    (
+                        Expression::If {
+                            condition: Box::new(cond),
+                            then: Box::new(body),
+                            or_else: Box::new(or_else.unwrap_or((Expression::Nil, e.span()))),
+                        },
+                        e.span(),
+                    )
+                })
+                .boxed()
+        });
+
+        inline_expr.or(while_expr).or(if_expr)
     })
 }
 
@@ -258,6 +422,79 @@ mod tests {
                     function: Box::new((Expression::Ident("me".into()), SimpleSpan::new(0, 2))),
                     arguments: vec![]
                 }
+            );
+        }
+
+        #[test]
+        fn array_index() {
+            let a = parse("me[10]").unwrap();
+            assert_eq!(
+                a.0,
+                Expression::ArrayIndex {
+                    lhs: Box::new((Expression::Ident("me".into()), SimpleSpan::new(0, 2))),
+                    index: Box::new((Expression::Number(10.), SimpleSpan::new(3, 5))),
+                }
+            );
+        }
+    }
+
+    mod prog {
+        use chumsky::{input::Stream, prelude::*};
+        use logos::Logos;
+
+        use crate::parser::ast::{Directive, Program, Spanned};
+        use crate::parser::parser::program_parser;
+        use crate::parser::{
+            ast::Expression, lexer::Token, operator::Operator, parser::expr_parser,
+        };
+        use indoc::indoc;
+
+        fn parse(source: &str) -> Result<Program, Vec<Rich<'_, Token<'_>>>> {
+            let token_iter = Token::lexer(source).spanned().map(|(tok, span)| match tok {
+                Ok(tok) => (tok, span.into()),
+                Err(()) => (Token::Error, span.into()),
+            });
+
+            let token_stream = Stream::from_iter(token_iter)
+                .map((0..source.len()).into(), |(t, s): (_, _)| (t, s));
+
+            program_parser().parse(token_stream).into_result()
+        }
+
+        #[test]
+        fn prog_simple() {
+            assert_eq!(
+                parse(r#"@x"#).unwrap(),
+                Program::new(
+                    vec![(Directive::new("x", vec![]), SimpleSpan::new(0, 2))],
+                    vec![]
+                )
+            );
+
+            assert_eq!(
+                parse(r#"@x @bruh"#).unwrap(),
+                Program::new(
+                    vec![
+                        (Directive::new("x", vec![]), SimpleSpan::new(0, 2)),
+                        (Directive::new("bruh", vec![]), SimpleSpan::new(3, 8)),
+                    ],
+                    vec![]
+                )
+            );
+
+            assert_eq!(
+                parse(indoc! {r#"
+                    @x
+                    @bruh 
+                "#})
+                .unwrap(),
+                Program::new(
+                    vec![
+                        (Directive::new("x", vec![]), SimpleSpan::new(0, 2)),
+                        (Directive::new("bruh", vec![]), SimpleSpan::new(3, 8)),
+                    ],
+                    vec![]
+                )
             );
         }
     }

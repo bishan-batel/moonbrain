@@ -13,16 +13,20 @@ crate-type = ["lib"]
 [dependencies]
 lazy_static = { workspace = true }
 rayon = { workspace = true }
-ron = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 eyre = { workspace = true }
-chumsky = { git = "https://github.com/zesterer/chumsky.git", features = ["label"] }
+chumsky = { git = "https://github.com/zesterer/chumsky.git", features = [
+	"label",
+	"serde",
+] }
 tokio = { version = "1.42.0", features = ["full"] }
 logos = "0.14.4"
 ariadne = "0.5.0"
 uuid = "1.11.0"
 color-eyre = "0.6.3"
+indoc = "2.0.5"
+dashmap = "6.1.0"
 
 [lints.clippy]
 all = "warn"

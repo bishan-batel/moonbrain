@@ -98,5 +98,10 @@ impl IStaticBody3D for GravityBody {
 
         let vel = self.base().get_constant_linear_velocity();
         self.base_mut().global_translate(vel * dt as f32);
+
+        let rot = self.base().get_constant_angular_velocity();
+        let rot = self.base().get_global_rotation() + rot;
+
+        self.base_mut().set_global_rotation(rot);
     }
 }

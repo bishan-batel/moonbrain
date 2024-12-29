@@ -1,5 +1,8 @@
+use std::fmt::Display;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum Operator {
     Sub,
     Add,
@@ -41,5 +44,29 @@ impl Operator {
                 | Operator::Nor
                 | Operator::Xor
         )
+    }
+}
+
+impl Display for Operator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Operator::Sub => "-",
+            Operator::Add => "+",
+            Operator::Mul => "*",
+            Operator::Div => "/",
+            Operator::Mod => "mod",
+            Operator::Assign => "=",
+            Operator::Not => "not",
+            Operator::Or => "or",
+            Operator::And => "and",
+            Operator::Nor => "nor",
+            Operator::Xor => "xor",
+            Operator::Equals => "==",
+            Operator::NotEqual => "!=",
+            Operator::Greater => ">",
+            Operator::GreaterOrEqual => ">=",
+            Operator::Less => "<",
+            Operator::LessOrEqual => "<=",
+        })
     }
 }
