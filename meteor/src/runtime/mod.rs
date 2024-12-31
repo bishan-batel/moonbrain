@@ -12,8 +12,9 @@ use memory::{Memory, Variable};
 use value::{Function, Type, Value};
 
 use crate::parser::{
-    ast::{self, Expression, Program, Spanned},
+    ast::{self, Expression, Program},
     operator::Operator,
+    span::Spanned,
     symbol::Identifier,
 };
 

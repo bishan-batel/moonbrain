@@ -3,27 +3,32 @@
 use chumsky::{
     error::Rich,
     input::{Input, Stream},
+    span::Span,
     Parser,
 };
 use logos::Logos;
 use parser::{
     ast::{Expression, Program},
     lexer::Token,
+    span,
+    src::SourceId,
 };
 
 pub mod parser;
 pub mod runtime;
 
-pub fn parse(source: &str) -> Result<Program, Vec<Rich<'_, Token<'_>>>> {
+pub fn parse(id: SourceId, source: &str) -> Result<Program, Vec<Rich<'_, Token<'_>, span::Span>>> {
     let token_iter = Token::lexer(source).spanned().map(|(tok, span)| match tok {
-        Ok(tok) => (tok, span.into()),
-        Err(()) => (Token::Error, span.into()),
+        Ok(tok) => (tok, span::Span::new(SourceId::new("_"), span)),
+        Err(()) => (Token::Error, span::Span::new(SourceId::new("_"), span)),
     });
 
-    let token_stream =
-        Stream::from_iter(token_iter).map((0..source.len()).into(), |(t, s): (_, _)| (t, s));
+    let token_stream = Stream::from_iter(token_iter).map(
+        span::Span::new(id.clone(), 0..source.len()),
+        move |(t, s)| (t, span::Span::new(id, s.range())),
+    );
 
-    parser::parser::program_parser()
-        .parse(token_stream)
-        .into_result()
+    let parser = parser::parser::program_parser();
+
+    parser.parse(token_stream).into_result()
 }

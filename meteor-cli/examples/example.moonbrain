@@ -1,14 +1,17 @@
 @bruh
 
 
-let main = func(CAP) {
-
-
+func main(CAP) {
 	let i = 1
 
 	while i <= CAP {
 		let fizz = i % 3 == 0;
 		let buzz = i % 5 == 0;
+
+
+		let a = [ 10 ]
+
+		let b = a[1];
 
 		if fizz and buzz {
 			print("FizzBuzz")
@@ -22,9 +25,7 @@ let main = func(CAP) {
 
 		i = i + 1
 	}
-
-	print(fizz)
 }
 
 
-main(1);
+main(10);

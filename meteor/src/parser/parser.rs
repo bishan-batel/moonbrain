@@ -10,8 +10,9 @@ use crate::{
 };
 
 use super::{
-    ast::{Directive, Program, Span, Spanned},
+    ast::{Directive, Program},
     operator::Operator,
+    span::{Span, Spanned},
 };
 
 #[allow(clippy::too_many_lines)]
@@ -92,7 +93,8 @@ where
             .boxed();
 
         let lambda = just(Token::Func)
-            .ignore_then(
+            .ignore_then(ident.clone().or_not())
+            .then(
                 // single/no argument like func x => x*2
                 variable_declare
                     .clone()
@@ -112,11 +114,23 @@ where
                     .clone()
                     .or(just(Token::FatArrow).ignore_then(expr.clone())),
             )
-            .map_with(|(args, expr), e| {
-                (
-                    Expression::Func(Box::new(Function::new(args.unwrap_or_default(), expr))),
-                    e.span(),
-                )
+            .map_with(|((name, args), expr), e| {
+                let func =
+                    Expression::Func(Box::new(Function::new(args.unwrap_or_default(), expr)));
+                if let Some(name) = name {
+                    (
+                        Expression::Let {
+                            meta: (
+                                VariableMeta::new(name, None, Mutability::Constant),
+                                e.span(),
+                            ),
+                            init: Box::new((func, e.span())),
+                        },
+                        e.span(),
+                    )
+                } else {
+                    (func, e.span())
+                }
             })
             .boxed();
 
@@ -336,21 +350,21 @@ mod tests {
         use chumsky::{input::Stream, prelude::*};
         use logos::Logos;
 
-        use crate::parser::ast::Spanned;
+        use crate::parser::span::{Span, Spanned};
         use crate::parser::{
             ast::Expression, lexer::Token, operator::Operator, parser::expr_parser,
         };
 
-        fn parse(source: &str) -> Result<Spanned<Expression>, Vec<Rich<'_, Token<'_>>>> {
+        fn parse(source: &str) -> Result<Spanned<Expression>, Vec<Rich<'_, Token<'_>, Span>>> {
             let token_iter = Token::lexer(source).spanned().map(|(tok, span)| match tok {
-                Ok(tok) => (tok, span.into()),
-                Err(()) => (Token::Error, span.into()),
+                Ok(tok) => (tok, Span::empty()),
+                Err(()) => (Token::Error, Span::empty()),
             });
 
             let token_stream = Stream::from_iter(token_iter)
                 // Tell chumsky to split the (Token, SimpleSpan) stream into its parts so that it can handle the spans for us
                 // This involves giving chumsky an 'end of input' span: we just use a zero-width span at the end of the string
-                .map((0..source.len()).into(), |(t, s): (_, _)| (t, s));
+                .map(Span::empty(), |(t, s): (_, _)| (t, s));
 
             expr_parser().parse(token_stream).into_result()
         }
@@ -364,10 +378,10 @@ mod tests {
                 (
                     Expression::BinaryOp {
                         operator: Operator::Add,
-                        lhs: Box::new((Expression::Number(1.), SimpleSpan::new(0, 1))),
-                        rhs: Box::new((Expression::Number(2.), SimpleSpan::new(4, 5)))
+                        lhs: Box::new((Expression::Number(1.), Span::empty())),
+                        rhs: Box::new((Expression::Number(2.), Span::empty()))
                     },
-                    SimpleSpan::new(0, 5)
+                    Span::empty()
                 )
             );
         }
@@ -382,10 +396,10 @@ mod tests {
             assert_eq!(
                 a.0,
                 Expression::Call {
-                    function: Box::new((Expression::Ident("me".into()), SimpleSpan::new(0, 2))),
+                    function: Box::new((Expression::Ident("me".into()), Span::empty())),
                     arguments: vec![
-                        (Expression::Bool(true), SimpleSpan::new(3, 7)),
-                        (Expression::Bool(false), SimpleSpan::new(9, 14))
+                        (Expression::Bool(true), Span::empty()),
+                        (Expression::Bool(false), Span::empty())
                     ]
                 }
             );
@@ -394,20 +408,17 @@ mod tests {
             assert_eq!(
                 a.0,
                 Expression::BinaryOp {
-                    lhs: Box::new((Expression::Ident("x".into()), SimpleSpan::new(0, 1))),
+                    lhs: Box::new((Expression::Ident("x".into()), Span::empty())),
                     operator: Operator::Assign,
                     rhs: Box::new((
                         Expression::Call {
-                            function: Box::new((
-                                Expression::Ident("me".into()),
-                                SimpleSpan::new(4, 6)
-                            )),
+                            function: Box::new((Expression::Ident("me".into()), Span::empty())),
                             arguments: vec![
-                                (Expression::Bool(true), SimpleSpan::new(7, 11)),
-                                (Expression::Bool(false), SimpleSpan::new(13, 18))
+                                (Expression::Bool(true), Span::empty()),
+                                (Expression::Bool(false), Span::empty())
                             ]
                         },
-                        SimpleSpan::new(4, 19)
+                        Span::empty()
                     ))
                 }
             );
@@ -419,7 +430,7 @@ mod tests {
             assert_eq!(
                 a.0,
                 Expression::Call {
-                    function: Box::new((Expression::Ident("me".into()), SimpleSpan::new(0, 2))),
+                    function: Box::new((Expression::Ident("me".into()), Span::empty())),
                     arguments: vec![]
                 }
             );
@@ -431,8 +442,8 @@ mod tests {
             assert_eq!(
                 a.0,
                 Expression::ArrayIndex {
-                    lhs: Box::new((Expression::Ident("me".into()), SimpleSpan::new(0, 2))),
-                    index: Box::new((Expression::Number(10.), SimpleSpan::new(3, 5))),
+                    lhs: Box::new((Expression::Ident("me".into()), Span::empty())),
+                    index: Box::new((Expression::Number(10.), Span::empty())),
                 }
             );
         }
@@ -442,21 +453,24 @@ mod tests {
         use chumsky::{input::Stream, prelude::*};
         use logos::Logos;
 
-        use crate::parser::ast::{Directive, Program, Spanned};
+        use crate::parser::ast::{Directive, Program};
         use crate::parser::parser::program_parser;
+        use crate::parser::span::{Span, Spanned};
         use crate::parser::{
             ast::Expression, lexer::Token, operator::Operator, parser::expr_parser,
         };
         use indoc::indoc;
 
-        fn parse(source: &str) -> Result<Program, Vec<Rich<'_, Token<'_>>>> {
+        fn parse(source: &str) -> Result<Program, Vec<Rich<'_, Token<'_>, Span>>> {
             let token_iter = Token::lexer(source).spanned().map(|(tok, span)| match tok {
-                Ok(tok) => (tok, span.into()),
-                Err(()) => (Token::Error, span.into()),
+                Ok(tok) => (tok, Span::empty()),
+                Err(()) => (Token::Error, Span::empty()),
             });
 
             let token_stream = Stream::from_iter(token_iter)
-                .map((0..source.len()).into(), |(t, s): (_, _)| (t, s));
+                // Tell chumsky to split the (Token, SimpleSpan) stream into its parts so that it can handle the spans for us
+                // This involves giving chumsky an 'end of input' span: we just use a zero-width span at the end of the string
+                .map(Span::empty(), |(t, s): (_, _)| (t, s));
 
             program_parser().parse(token_stream).into_result()
         }
@@ -465,18 +479,15 @@ mod tests {
         fn prog_simple() {
             assert_eq!(
                 parse(r#"@x"#).unwrap(),
-                Program::new(
-                    vec![(Directive::new("x", vec![]), SimpleSpan::new(0, 2))],
-                    vec![]
-                )
+                Program::new(vec![(Directive::new("x", vec![]), Span::empty())], vec![])
             );
 
             assert_eq!(
                 parse(r#"@x @bruh"#).unwrap(),
                 Program::new(
                     vec![
-                        (Directive::new("x", vec![]), SimpleSpan::new(0, 2)),
-                        (Directive::new("bruh", vec![]), SimpleSpan::new(3, 8)),
+                        (Directive::new("x", vec![]), Span::empty()),
+                        (Directive::new("bruh", vec![]), Span::empty()),
                     ],
                     vec![]
                 )
@@ -490,8 +501,8 @@ mod tests {
                 .unwrap(),
                 Program::new(
                     vec![
-                        (Directive::new("x", vec![]), SimpleSpan::new(0, 2)),
-                        (Directive::new("bruh", vec![]), SimpleSpan::new(3, 8)),
+                        (Directive::new("x", vec![]), Span::empty()),
+                        (Directive::new("bruh", vec![]), Span::empty()),
                     ],
                     vec![]
                 )

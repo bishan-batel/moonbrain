@@ -4,10 +4,7 @@ use dashmap::DashMap;
 use serde::Serialize;
 
 use crate::{
-    parser::{
-        ast::{Expression, Spanned},
-        symbol::Identifier,
-    },
+    parser::{ast::Expression, span::Spanned, symbol::Identifier},
     runtime::Result,
 };
 

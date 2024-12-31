@@ -1,6 +1,3 @@
-use std::rc::Rc;
-
-use chumsky::span::SimpleSpan;
 use serde::Serialize;
 
 use crate::{
@@ -8,11 +5,7 @@ use crate::{
     runtime::memory::Mutability,
 };
 
-/// Span information for a given token or AST Expression
-pub type Span = SimpleSpan;
-
-/// A type with associated span
-pub type Spanned<T> = (T, Span);
+use super::span::Spanned;
 
 /// AST Representation of a typical program (*one file*)
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -125,7 +118,7 @@ impl Function {
         Self { arguments, body }
     }
 
-    pub fn arguments(&self) -> &[(VariableMeta, SimpleSpan<usize, ()>)] {
+    pub fn arguments(&self) -> &[Spanned<VariableMeta>] {
         &self.arguments
     }
 

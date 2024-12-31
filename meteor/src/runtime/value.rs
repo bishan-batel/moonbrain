@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::parser::{
-    ast::{self, Expression, Spanned, VariableMeta},
+    ast::{self},
     symbol::Identifier,
 };
 
