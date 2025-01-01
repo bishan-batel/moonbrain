@@ -47,7 +47,8 @@ impl Backend {
         };
 
         self.client
-            .publish_diagnostics(params.uri, diagnostics, Some(params.version));
+            .publish_diagnostics(params.uri, diagnostics, Some(params.version))
+            .await;
     }
 }
 
@@ -200,14 +201,30 @@ impl LanguageServer for Backend {
         Ok(None)
     }
 
-    async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        Ok(Some(CompletionResponse::Array(vec![CompletionItem {
-            label: "me when the".into(),
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        params.context;
+
+        const KEYWORDS: &[&str] = &["if", "while", "do", "func", "fn", "let", "var"];
+
+        let mut default_completions: Vec<_> = KEYWORDS
+            .iter()
+            .map(|label| CompletionItem {
+                label: (*label).into(),
+                kind: Some(CompletionItemKind::KEYWORD),
+                ..Default::default()
+            })
+            .collect();
+
+        default_completions.push(CompletionItem {
+            label: "print".into(),
+            kind: Some(CompletionItemKind::FUNCTION),
             ..Default::default()
-        }])))
+        });
+
+        Ok(Some(CompletionResponse::Array(default_completions)))
     }
 
-    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+    async fn rename(&self, _params: RenameParams) -> Result<Option<WorkspaceEdit>> {
         Ok(None)
     }
 

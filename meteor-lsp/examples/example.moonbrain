@@ -4,17 +4,19 @@
 func main(CAP) {
 	let i = 1
 
+
 	let a = {
 		what = 0
 	}
 
 
+
 	print(a)
 
 	while i <= CAP {
+
 		let fizz = i % 3 == 0;
 		let buzz = i % 5 == 0;
-
 
 		let a = [ 10 ]
 
