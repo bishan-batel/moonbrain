@@ -8,6 +8,7 @@ func main(CAP) {
 		what = 0
 	}
 
+
 	print(a)
 
 	while i <= CAP {

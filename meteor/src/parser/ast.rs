@@ -66,6 +66,8 @@ pub enum Expression {
     /// Array Literal
     Array(Vec<Spanned<Self>>),
 
+    Dictionary(Vec<(Identifier, Spanned<Expression>)>),
+
     Func(Box<Function>),
 
     Let {

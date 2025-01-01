@@ -1,5 +1,5 @@
 [workspace]
-members = ["moonbrain-rs", "meteor", "meteor-cli"]
+members = ["moonbrain-rs", "meteor", "meteor-cli", "meteor-lsp"]
 resolver = "2"
 
 [workspace.package]
@@ -14,6 +14,5 @@ rust-version = "1.70"
 eyre = { version = "0.6.12" }
 lazy_static = "1.5.0"
 rayon = "1.10.0"
-ron = "0.8.1"
 serde = "1.0.216"
 thiserror = "2.0.6"

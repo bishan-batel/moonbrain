@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    collections::HashMap,
     fmt::{Display, Write},
     rc::Rc,
 };
@@ -87,8 +88,11 @@ pub enum Value {
     Number(f64),
     Array(Rc<Vec<Value>>),
     Function(Rc<Function>),
+    Dictionary(Rc<HashMap<Identifier, Value>>),
     Nil,
 }
+
+pub trait ValConvert: Into<Value> + TryFrom<Value, Error = ()> {}
 
 impl Value {
     pub fn is_type(&self, data_type: &Type) -> bool {
@@ -108,7 +112,7 @@ impl Value {
             Value::Bool(b) => *b,
 
             Value::Number(b) => *b != 0.,
-            Value::Array(_) | Value::Function(_) => true,
+            Value::Dictionary(..) | Value::Array(_) | Value::Function(_) => true,
             Value::Nil => false,
         }
     }
@@ -142,6 +146,10 @@ impl Value {
             Value::Number(_) => Type::Number,
             Value::Array(..) => Type::Array(Default::default()),
             Value::Function(..) => todo!("Functions have no types"),
+            Value::Dictionary(..) => Type::Dictionary {
+                key: Default::default(),
+                value: Default::default(),
+            },
             Value::Nil => Type::Nil,
         }
     }
@@ -154,11 +162,27 @@ macro_rules! from_value {
                 Self::$variant(value.into())
             }
         }
+
+        impl TryInto<$from> for Value {
+            type Error = ();
+
+            fn try_into(self) -> Result<$from, Self::Error> {
+                match self {
+                    Value::$variant(n) => Ok(n as $from),
+                    _ => Err(()),
+                }
+            }
+        }
     };
 }
 
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        value.to_string().into()
+    }
+}
+
 from_value!(bool, Bool);
-from_value!(&str, String);
 from_value!(String, String);
 from_value!(i8, Number);
 from_value!(i16, Number);
@@ -196,6 +220,13 @@ impl Display for Value {
                     f.write_char(',')?;
                 }
                 f.write_char(']')
+            }
+            Value::Dictionary(dict) => {
+                f.write_char('{')?;
+                for (key, val) in dict.iter() {
+                    f.write_fmt(format_args!("{key}: {val}"))?;
+                }
+                f.write_char('}')
             }
             Value::Function(..) => f.write_str("[function]"),
             Value::Nil => f.write_str("nil"),

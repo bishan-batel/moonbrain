@@ -39,12 +39,7 @@ fn main() {
                     println!("Exited with value \"{value}\"");
                 }
                 Err(err) => {
-                    Report::build(ariadne::ReportKind::Error, err.span().clone())
-                        .with_message(err.reason())
-                        .with_label(Label::new(err.span().clone()).with_message(format!("{err}")))
-                        .finish()
-                        .eprint((prog_ctx, Source::from(&contents)))
-                        .unwrap();
+                    err.write((prog_ctx, Source::from(&contents)), std::io::stderr());
                 }
             }
         }

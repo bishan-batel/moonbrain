@@ -1,9 +1,11 @@
+// pub mod array;
+pub mod collections;
 pub mod error;
 pub mod io;
 pub mod memory;
 pub mod value;
 
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use chumsky::container::Container;
 use error::RuntimeError;
@@ -154,6 +156,9 @@ impl Chip {
             }
 
             Expression::PropertyAccess { lhs, property } => match self.eval(lhs)? {
+                Value::Dictionary(values) => {
+                    values.get(property).map(Value::clone).unwrap_or(Value::Nil)
+                }
                 Value::Array(..)
                 | Value::String(..)
                 | Value::Bool(..)
@@ -185,14 +190,21 @@ impl Chip {
             },
 
             Expression::BinaryOp { lhs, operator, rhs } => {
+                let unsupported = || Err(RuntimeError::UnsupportedOperation(expr.clone()));
+
                 if operator == &Operator::Assign {
-                    match lhs.0 {
+                    match &lhs.0 {
                         Expression::Ident(ref ident) => {
                             let value = self.eval(rhs)?;
                             self.memory.store(ident, value, expr)?;
                             return Ok(Value::Nil);
                         }
-                        _ => {}
+                        Expression::ArrayIndex { lhs, index } => {
+                            todo!()
+                            // let array = self.eval(lhs)?;
+                            // let idx = index.a
+                        }
+                        _ => return unsupported(),
                     }
                 }
 
@@ -203,18 +215,13 @@ impl Chip {
                         Operator::Mul => a * b,
                         Operator::Div => a / b,
                         Operator::Mod => a % b,
-                        Operator::Assign => todo!(),
-                        Operator::Not => todo!(),
-                        Operator::Or => todo!(),
-                        Operator::And => todo!(),
-                        Operator::Nor => todo!(),
-                        Operator::Xor => todo!(),
                         Operator::Equals => return Ok(Value::Bool(a == b)),
                         Operator::NotEqual => return Ok(Value::Bool(a != b)),
                         Operator::Greater => return Ok(Value::Bool(a > b)),
                         Operator::GreaterOrEqual => return Ok(Value::Bool(a >= b)),
                         Operator::Less => return Ok(Value::Bool(a < b)),
                         Operator::LessOrEqual => return Ok(Value::Bool(a <= b)),
+                        _ => return unsupported(),
                     }),
                     (Value::Bool(a), Value::Bool(b)) => Value::Bool(match operator {
                         Operator::Or => a || b,
@@ -303,6 +310,16 @@ impl Chip {
 
                     _ => todo!(),
                 }
+            }
+
+            Expression::Dictionary(vec) => {
+                let mut map = HashMap::new();
+
+                for (key, val) in vec {
+                    map.insert(key.clone(), self.eval(val)?);
+                }
+
+                Value::Dictionary(Rc::new(map))
             }
 
             Expression::Error => Value::Nil,

@@ -1,10 +1,13 @@
-use chumsky::span::SimpleSpan;
+use std::io::Write;
+
+use ariadne::{Cache, Label, Report};
 use thiserror::Error;
 
 use crate::parser::{
     ast::{self, Expression},
     operator::Operator,
-    span::{Span, Spanned},
+    span::{Span as MSpan, Spanned},
+    src::SourceId,
     symbol::Identifier,
 };
 
@@ -21,7 +24,7 @@ pub enum RuntimeError {
     #[error("Unknown type {:?}", data_type.0)]
     UnknownType { data_type: Spanned<ast::Type> },
 
-    #[error("Failed to find variable of name {name}")]
+    #[error("Mismatch type to find variable of name {name}")]
     MismatchType {
         name: Identifier,
         data_type: Type,
@@ -58,7 +61,7 @@ impl RuntimeError {
         format!("{self}")
     }
 
-    pub fn span(&self) -> &Span {
+    pub fn span(&self) -> &MSpan {
         match self {
             RuntimeError::UnknownVariable {
                 expr: (_, span), ..
@@ -79,5 +82,20 @@ impl RuntimeError {
                 array: (_, span), ..
             } => span,
         }
+    }
+
+    pub fn write(&self, cache: impl Cache<SourceId>, writer: impl Write) {
+        let span: &MSpan = self.span();
+        Report::build(ariadne::ReportKind::Error, span.clone())
+            .with_code(3)
+            .with_message("Error")
+            .with_label(
+                Label::new(span.clone())
+                    .with_message(format!("{self}"))
+                    .with_color(ariadne::Color::Red),
+            )
+            .finish()
+            .write(cache, writer)
+            .unwrap();
     }
 }

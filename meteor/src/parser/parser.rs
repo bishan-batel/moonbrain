@@ -61,6 +61,17 @@ where
         let ident =
             select! { Token::Identifier(ident) => Identifier::from(ident) }.labelled("identifier");
 
+        let dict = (ident
+            .clone()
+            .then_ignore(just(Token::Operator(Operator::Assign)))
+            .then(expr.clone()))
+        .separated_by(just(Token::Comma))
+        .allow_leading()
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::CurlyBraceOpen), just(Token::CurlyBraceClose))
+        .map_with(|pairs, e| (Expression::Dictionary(pairs), e.span()));
+
         let r#type = ident
             .clone()
             .map_with(|ident, e| (Type::Named(ident), e.span()));
@@ -162,7 +173,8 @@ where
             .map_with(|expr, e| (expr, e.span()))
             .or(lambda)
             .or(let_expr)
-            .or(block.clone())
+            .or(dict)
+            .or(just(Token::Do).ignore_then(block.clone()))
             // normal expr but surrounded by parens
             .or(expr
                 .clone()

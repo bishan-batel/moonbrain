@@ -91,6 +91,9 @@ pub enum Token<'a> {
     #[token("in", priority = 100)]
     In,
 
+    #[token("do", priority = 100)]
+    Do,
+
     #[token("let", priority = 100)]
     Let,
 
@@ -160,6 +163,7 @@ impl Display for Token<'_> {
             Token::Identifier(ident) => f.write_fmt(format_args!("{ident}")),
             Token::String(str) => f.write_fmt(format_args!("{str:#?}")),
             Token::Error => f.write_str("[ERROR]"),
+            Token::Do => f.write_str("do"),
         }
     }
 }

@@ -3,7 +3,7 @@
 extern crate godot;
 extern crate lazy_static;
 extern crate rayon;
-extern crate ron;
+// extern crate ron;
 extern crate serde;
 
 use godot::prelude::*;

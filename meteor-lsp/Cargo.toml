@@ -1,26 +1,25 @@
 [package]
-name = "moonbrain-gd"
+name = "meteor-lsp"
 version.workspace = true
+edition.workspace = true
 authors.workspace = true
 description.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
-edition.workspace = true
-
-[lib]
-crate-type = ["cdylib"]
 
 [dependencies]
-godot = { version = "0.2.1", features = ["register-docs", "serde"] }
 lazy_static = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 eyre = { workspace = true }
 meteor = { path = "../meteor/" }
-bytemuck = { version = "1.21.0", features = ["derive"] }
-bytebuffer = "2.3.0"
-
-[lints.clippy]
-all = "warn"
-pedantic = "allow"
+serde_json = "1.0.134"
+tokio = { version = "1.42.0", features = ["full"] }
+dashmap = "6.1.0"
+tower-lsp = "0.20.0"
+ropey = "1.6.1"
+chumsky = { git = "https://github.com/zesterer/chumsky.git", features = [
+	"label",
+	"serde",
+] }
