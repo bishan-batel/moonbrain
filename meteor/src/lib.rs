@@ -11,6 +11,7 @@ use parser::{ast::Program, lexer::Token, span, src::SourceId};
 
 pub mod parser;
 pub mod runtime;
+pub mod semantic;
 
 // pub use runtime::array::Array;
 
