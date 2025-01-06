@@ -13,7 +13,6 @@ pub struct Span {
 pub type Spanned<T> = (T, Span);
 
 impl Span {
-    #[cfg(test)]
     pub fn empty() -> Self {
         Self {
             src: SourceId::empty(),

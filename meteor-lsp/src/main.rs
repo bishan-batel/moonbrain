@@ -28,8 +28,9 @@ impl Backend {
 
         let result = meteor::parse(SourceId::new(params.uri.to_string()), &params.text);
 
-        let diagnostics = if let Err(err) = result {
-            err.into_iter()
+        let diagnostics = match result {
+            Err(err) => err
+                .into_iter()
                 .filter_map(|item| {
                     let message = item.reason().to_string();
                     let span = item.span();
@@ -41,9 +42,32 @@ impl Backend {
                         message,
                     ))
                 })
-                .collect::<Vec<_>>()
-        } else {
-            vec![]
+                .collect(),
+            Ok(prog) => meteor::semantic::analyze(&prog)
+                .into_iter()
+                .filter_map(|x| {
+                    use meteor::semantic;
+
+                    let message = x.reason();
+                    let span = &x.span.1;
+
+                    let start_position = offset_to_position(span.start(), &rope)?;
+                    let end_position = offset_to_position(span.end(), &rope)?;
+                    Some(Diagnostic::new(
+                        Range::new(start_position, end_position),
+                        Some(match x.severity {
+                            semantic::Severity::Hint => DiagnosticSeverity::HINT,
+                            semantic::Severity::Warning => DiagnosticSeverity::WARNING,
+                            semantic::Severity::Error => DiagnosticSeverity::ERROR,
+                        }),
+                        None,
+                        None,
+                        message,
+                        None,
+                        None,
+                    ))
+                })
+                .collect(),
         };
 
         self.client

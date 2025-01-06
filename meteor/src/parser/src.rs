@@ -18,7 +18,6 @@ pub struct Sourced<T: ?Sized> {
 pub struct SourceId(Intern<String>);
 
 impl SourceId {
-    #[cfg(test)]
     pub fn empty() -> Self {
         Self(Intern::new("[test]".into()))
     }

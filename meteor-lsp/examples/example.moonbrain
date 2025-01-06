@@ -1,40 +1,14 @@
 @bruh
 
+let i = 0
 
 func main(CAP) {
-	let i = 1
+	let numbers = [ 0, 10, 20 ]
 
-
-	let a = {
-		what = 0
-	}
-
-
+	let a =  if 0 { true } else { false }
 
 	print(a)
 
-	while i <= CAP {
 
-		let fizz = i % 3 == 0;
-		let buzz = i % 5 == 0;
-
-		let a = [ 10 ]
-
-		let b = a[1];
-
-		if fizz and buzz {
-			print("FizzBuzz")
-		} else if fizz {
-			print("Fizz")
-		} if buzz {
-			print("Buzz");
-		} else {
-			print(i)
-		}
-
-		i = i + 1
-	}
+	print(numbers)
 }
-
-
-main(10);

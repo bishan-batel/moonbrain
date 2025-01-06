@@ -1,6 +1,8 @@
 use std::io::Write;
 
 use ariadne::{Cache, Label, Report};
+use displaydoc::Display;
+use lazy_static::lazy_static;
 use thiserror::Error;
 
 use crate::parser::{
@@ -13,43 +15,46 @@ use crate::parser::{
 
 use super::value::{Type, Value};
 
-#[derive(Debug, Error)]
+#[derive(Debug, Display, Error)]
 pub enum RuntimeError {
-    #[error("Failed to find variable of name {name}")]
+    /// Failed to find variable of name {name}
     UnknownVariable {
         name: Identifier,
         expr: Spanned<Expression>,
     },
 
-    #[error("Unknown type {:?}", data_type.0)]
+    /// Unknown type {data_type:?}
     UnknownType { data_type: Spanned<ast::Type> },
 
-    #[error("Mismatch type to find variable of name {name}")]
+    /// Global 'main' is not a function
+    InvalidMainFunc,
+
+    /// Mismatch type to find variable of name {name}
     MismatchType {
         name: Identifier,
         data_type: Type,
         expr: Spanned<Expression>,
     },
 
-    #[error("Unsupported operation in expression")]
+    /// Unsupported operation in expression
     UnsupportedOperation(Spanned<Expression>),
 
-    #[error("Unsupported operation in expression")]
+    /// Unsupported operation in expression
     UnsupportedUnaryOperation(Operator, Spanned<Expression>, Value),
 
-    #[error("Invalid property access")]
+    /// Invalid property access
     InvalidPropertyAccess {
         obj: Spanned<Expression>,
         property: Identifier,
     },
 
-    #[error("Array index out of bounds")]
+    /// Array index out of bounds
     ArrayOutOfBounds {
         array: Spanned<Expression>,
         index: Spanned<Expression>,
     },
 
-    #[error("Invalid property access")]
+    /// Invalid property access
     CannotIndexIntoType {
         array: Spanned<Expression>,
         data_type: Type,
@@ -62,6 +67,10 @@ impl RuntimeError {
     }
 
     pub fn span(&self) -> &MSpan {
+        lazy_static! {
+            pub static ref EMPTY_SPAN: MSpan = MSpan::empty();
+        }
+
         match self {
             RuntimeError::UnknownVariable {
                 expr: (_, span), ..
@@ -81,6 +90,7 @@ impl RuntimeError {
             RuntimeError::CannotIndexIntoType {
                 array: (_, span), ..
             } => span,
+            RuntimeError::InvalidMainFunc => &EMPTY_SPAN,
         }
     }
 

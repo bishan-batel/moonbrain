@@ -5,9 +5,8 @@ pub mod io;
 pub mod memory;
 pub mod value;
 
-use std::{collections::HashMap, rc::Rc};
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
 
-use chumsky::container::Container;
 use error::RuntimeError;
 use io::{Sink, Socket};
 use memory::{Memory, Variable};
@@ -16,8 +15,7 @@ use value::{Function, Type, Value};
 use crate::parser::{
     ast::{self, Expression, Program},
     operator::Operator,
-    span::Spanned,
-    symbol::Identifier,
+    span::{Span, Spanned},
 };
 
 pub type Result<T> = std::result::Result<T, error::RuntimeError>;
@@ -43,13 +41,20 @@ impl Chip {
     pub fn run(&mut self) -> Result<Value> {
         let programs = self.program.clone();
 
-        let mut val = Value::Nil;
-
         for p in programs.expressions().iter() {
-            val = self.eval(p)?;
+            self.eval(p)?;
         }
 
-        Ok(val)
+        let main = "main".into();
+
+        let func = self
+            .memory
+            .retrieve(&main, &(Expression::Ident(main.clone()), Span::empty()))?;
+
+        match func.value() {
+            Value::Function(func) => self.run_func(func, &[]),
+            _ => Err(RuntimeError::InvalidMainFunc),
+        }
     }
 
     fn resolve_type(&self, ty: &Spanned<ast::Type>) -> Result<Type> {
@@ -88,13 +93,14 @@ impl Chip {
             Expression::String(str) => Value::String(str.clone()),
             Expression::Bool(b) => Value::Bool(*b),
             Expression::Number(n) => Value::Number(*n),
-            Expression::Array(vec) => Value::Array(Rc::new(vec.iter().try_fold(
-                Vec::with_capacity(vec.len()),
-                |mut v, x| {
-                    v.push(self.eval(x)?);
-                    Ok(v)
-                },
-            )?)),
+            Expression::Array(vec) => Value::Array(Rc::new(
+                vec.iter()
+                    .try_fold(Vec::with_capacity(vec.len()), |mut v, x| {
+                        v.push(self.eval(x)?);
+                        Ok(v)
+                    })?
+                    .into(),
+            )),
 
             Expression::Func(function) => Value::Function(Rc::new(Function::new(
                 Rc::new(ast::Function::clone(function)),
@@ -173,7 +179,7 @@ impl Chip {
             },
 
             Expression::ArrayIndex { lhs, index } => match (self.eval(lhs)?, self.eval(index)?) {
-                (Value::Array(arr), Value::Number(i)) => arr
+                (Value::Array(arr), Value::Number(i)) => RefCell::borrow(&arr)
                     .get(i.floor() as usize)
                     .ok_or_else(|| RuntimeError::ArrayOutOfBounds {
                         array: *lhs.clone(),
@@ -193,19 +199,27 @@ impl Chip {
                 let unsupported = || Err(RuntimeError::UnsupportedOperation(expr.clone()));
 
                 if operator == &Operator::Assign {
+                    let value = self.eval(rhs)?;
+
                     match &lhs.0 {
                         Expression::Ident(ref ident) => {
-                            let value = self.eval(rhs)?;
                             self.memory.store(ident, value, expr)?;
                             return Ok(Value::Nil);
                         }
                         Expression::ArrayIndex { lhs, index } => {
-                            todo!()
-                            // let array = self.eval(lhs)?;
-                            // let idx = index.a
+                            match (self.eval(lhs)?, self.eval(index)?) {
+                                (Value::Array(arr), Value::Number(n)) => {
+                                    arr.borrow_mut()[n as usize] = value;
+                                    return Ok(Value::Nil);
+                                }
+                                _ => {}
+                            }
                         }
-                        _ => return unsupported(),
+
+                        _ => {}
                     }
+
+                    return unsupported();
                 }
 
                 match (self.eval(lhs)?, self.eval(rhs)?) {
@@ -269,44 +283,9 @@ impl Chip {
                     }
                     return Ok(Value::Nil);
                 }
+
                 match self.eval(function)? {
-                    Value::Function(ref func) => {
-                        // push memory scope
-                        let old = std::mem::replace(&mut self.memory, func.scope().clone());
-
-                        let func = func.inner();
-
-                        self.memory.push_env();
-
-                        for (param, arg) in func.arguments().iter().zip(arguments) {
-                            let data_type = if let Some(ty) = param.0.data_type() {
-                                self.resolve_type(ty)?
-                            } else {
-                                Default::default()
-                            };
-
-                            let value = self.eval(arg)?;
-
-                            self.memory.define(
-                                param.0.name().clone(),
-                                Variable {
-                                    data_type,
-                                    mutability: param.0.mutablity(),
-                                    value,
-                                },
-                                arg,
-                            )?;
-                        }
-
-                        let returns = self.eval(func.body())?;
-
-                        let _ = self.memory.pop_env();
-
-                        // pop memory scope
-                        self.memory = old;
-
-                        returns
-                    }
+                    Value::Function(ref func) => self.run_func(func, arguments)?,
 
                     _ => todo!(),
                 }
@@ -324,5 +303,47 @@ impl Chip {
 
             Expression::Error => Value::Nil,
         })
+    }
+
+    fn run_func(
+        &mut self,
+        func: &Rc<Function>,
+        arguments: &[Spanned<Expression>],
+    ) -> Result<Value> {
+        // Push memory scope
+        let old = std::mem::replace(&mut self.memory, func.scope().clone());
+
+        let func = func.inner();
+
+        self.memory.push_env();
+
+        for (param, arg) in func.arguments().iter().zip(arguments) {
+            let data_type = if let Some(ty) = param.0.data_type() {
+                self.resolve_type(ty)?
+            } else {
+                Default::default()
+            };
+
+            let value = self.eval(arg)?;
+
+            self.memory.define(
+                param.0.name().clone(),
+                Variable {
+                    data_type,
+                    mutability: param.0.mutablity(),
+                    value,
+                },
+                arg,
+            )?;
+        }
+
+        let returns = self.eval(func.body())?;
+
+        let _ = self.memory.pop_env();
+
+        // Pop memory scope
+        self.memory = old;
+
+        Ok(returns)
     }
 }

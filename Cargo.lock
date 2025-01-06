@@ -934,6 +934,7 @@ dependencies = [
  "chumsky",
  "color-eyre",
  "dashmap 6.1.0",
+ "displaydoc",
  "eyre",
  "indoc",
  "internment",

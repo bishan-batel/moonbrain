@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    cell::RefCell,
     collections::HashMap,
     fmt::{Display, Write},
     rc::Rc,
@@ -86,7 +87,7 @@ pub enum Value {
     String(String),
     Bool(bool),
     Number(f64),
-    Array(Rc<Vec<Value>>),
+    Array(Rc<RefCell<Vec<Value>>>),
     Function(Rc<Function>),
     Dictionary(Rc<HashMap<Identifier, Value>>),
     Nil,
@@ -215,7 +216,7 @@ impl Display for Value {
             Value::Array(values) => {
                 f.write_char('[')?;
 
-                for val in values.iter() {
+                for val in values.borrow().iter() {
                     val.fmt(f)?;
                     f.write_char(',')?;
                 }
