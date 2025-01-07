@@ -6,7 +6,8 @@ use displaydoc::Display;
 
 use crate::parser::{
     ast::{Expression, Program},
-    span::Spanned,
+    operator::Operator,
+    span::{Span, Spanned},
     symbol::Identifier,
 };
 
@@ -30,6 +31,12 @@ pub enum DiagnosticKind {
     /// Arrays cannot have a non integer index
     FractionalArrayIndex,
 
+    /// Expression is being ignored
+    IgnoredOperation,
+
+    /// Empty block has no use
+    EmptyBlock,
+
     /// Multiple arguments named `{0}`
     DuplicateArgumentName(Identifier),
 }
@@ -50,13 +57,17 @@ pub enum Severity {
 pub struct Diagnostic<'a> {
     pub kind: DiagnosticKind,
     pub severity: Severity,
-    pub span: &'a Spanned<Expression>,
+    pub span: &'a Span,
 }
 
 impl Diagnostic<'_> {
     pub fn reason(&self) -> String {
         format!("{}", self.kind)
     }
+}
+
+pub struct Diagnoses<'a> {
+    pub diagnostics: Vec<Diagnostic<'a>>,
 }
 
 struct Analyzer<'a> {
@@ -72,14 +83,16 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn analyze_prog(mut self) -> Vec<Diagnostic<'a>> {
+    fn analyze_prog(mut self) -> Diagnoses<'a> {
         self.validate_top_level();
 
         for expr in self.program.expressions() {
-            self.analyze(expr);
+            self.analyze_inline(expr);
         }
 
-        self.diagnoses
+        Diagnoses {
+            diagnostics: self.diagnoses,
+        }
     }
 
     fn validate_top_level(&mut self) {
@@ -91,7 +104,7 @@ impl<'a> Analyzer<'a> {
                     self.diagnose(Diagnostic {
                         kind: DiagnosticKind::InvalidTopLevel,
                         severity: Severity::Warning,
-                        span: prog,
+                        span: &prog.1,
                     });
                 }
             }
@@ -104,7 +117,42 @@ impl<'a> Analyzer<'a> {
         }
     }
 
+    fn analyze_each_inline(&mut self, exprs: impl Iterator<Item = &'a Spanned<Expression>>) {
+        for expr in exprs {
+            self.analyze_inline(expr)
+        }
+    }
+
     fn analyze(&mut self, expr: &'a Spanned<Expression>) {
+        match &expr.0 {
+            Expression::Error
+            | Expression::Let { .. }
+            | Expression::If { .. }
+            | Expression::While { .. }
+            | Expression::Call { .. } => {}
+
+            Expression::BinaryOp { operator, .. } if operator != &Operator::Assign => {}
+
+            Expression::Block(exprs) => {
+                if exprs.is_empty() {
+                    self.diagnose(Diagnostic {
+                        kind: DiagnosticKind::EmptyBlock,
+                        severity: Severity::Warning,
+                        span: &expr.1,
+                    });
+                }
+            }
+
+            _ => self.diagnose(Diagnostic {
+                kind: DiagnosticKind::IgnoredOperation,
+                severity: Severity::Warning,
+                span: &expr.1,
+            }),
+        }
+        self.analyze_inline(expr);
+    }
+
+    fn analyze_inline(&mut self, expr: &'a Spanned<Expression>) {
         match &expr.0 {
             Expression::While { condition, then } => {
                 self.check_condition(expr, condition);
@@ -114,46 +162,49 @@ impl<'a> Analyzer<'a> {
                         self.diagnose(Diagnostic {
                             kind: DiagnosticKind::InfiniteLoop,
                             severity: Severity::Warning,
-                            span: expr,
+                            span: &expr.1,
                         });
                     }
                 }
 
-                self.analyze(condition);
-                self.analyze(then);
+                self.analyze_inline(condition);
+                self.analyze_inline(then);
             }
 
-            Expression::Array(vec) => self.analyze_each(vec.iter()),
+            Expression::Array(vec) => self.analyze_each_inline(vec.iter()),
 
-            Expression::Block(vec) => self.analyze_each(vec.iter()),
+            Expression::Block(vec) => {
+                for i in 0..(vec.len() - 1) {
+                    self.analyze(&vec[i]);
+                }
+                if let Some(last) = vec.last() {
+                    self.analyze_inline(last);
+                }
+            }
 
-            Expression::Dictionary(vec) => self.analyze_each(vec.iter().map(|(_, v)| v)),
+            Expression::Dictionary(vec) => self.analyze_each_inline(vec.iter().map(|(_, v)| v)),
 
             Expression::Func(function) => {
-                let mut duplicates = HashMap::new();
+                let mut duplicates = HashSet::new();
 
                 for arg in function.arguments() {
                     let name = arg.0.name().clone();
 
-                    if let Some(count) = duplicates.get_mut(&name) {
-                        *count += 1;
+                    if duplicates.contains(&name) {
+                        self.diagnose(Diagnostic {
+                            kind: DiagnosticKind::DuplicateArgumentName(name),
+                            severity: Severity::Warning,
+                            span: &arg.1,
+                        });
                     } else {
-                        duplicates.insert(name, 1usize);
+                        duplicates.insert(name);
                     }
                 }
 
-                for (name, _) in duplicates.into_iter().filter(|(_, c)| *c > 1) {
-                    self.diagnose(Diagnostic {
-                        kind: DiagnosticKind::DuplicateArgumentName(name),
-                        severity: Severity::Warning,
-                        span: expr,
-                    });
-                }
-
-                self.analyze(function.body());
+                self.analyze_inline(function.body());
             }
 
-            Expression::Let { meta: _, init } => self.analyze(init),
+            Expression::Let { meta: _, init } => self.analyze_inline(init),
 
             Expression::If {
                 condition,
@@ -161,25 +212,25 @@ impl<'a> Analyzer<'a> {
                 or_else,
             } => {
                 self.check_condition(expr, condition);
-                self.analyze(condition);
-                self.analyze(then);
-                self.analyze(or_else);
+                self.analyze_inline(condition);
+                self.analyze_inline(then);
+                self.analyze_inline(or_else);
             }
 
             Expression::PropertyAccess { lhs, property: _ } => {
-                self.analyze(lhs);
+                self.analyze_inline(lhs);
             }
 
             Expression::ArrayIndex { lhs, index } => {
-                self.analyze(lhs);
-                self.analyze(index);
+                self.analyze_inline(lhs);
+                self.analyze_inline(index);
 
                 if let Expression::Number(n) = index.0 {
                     if n < 0. {
                         self.diagnose(Diagnostic {
                             kind: DiagnosticKind::NegativeArrayIndex,
                             severity: Severity::Warning,
-                            span: index,
+                            span: &index.1,
                         });
                     }
 
@@ -187,7 +238,7 @@ impl<'a> Analyzer<'a> {
                         self.diagnose(Diagnostic {
                             kind: DiagnosticKind::FractionalArrayIndex,
                             severity: Severity::Warning,
-                            span: index,
+                            span: &index.1,
                         });
                     }
                 }
@@ -198,20 +249,20 @@ impl<'a> Analyzer<'a> {
                 operator: _,
                 rhs,
             } => {
-                self.analyze(lhs);
-                self.analyze(rhs);
+                self.analyze_inline(lhs);
+                self.analyze_inline(rhs);
             }
 
             Expression::UnaryOp { operator: _, rhs } => {
-                self.analyze(rhs);
+                self.analyze_inline(rhs);
             }
 
             Expression::Call {
                 function,
                 arguments,
             } => {
-                self.analyze(function);
-                self.analyze_each(arguments.iter());
+                self.analyze_inline(function);
+                self.analyze_each_inline(arguments.iter());
             }
 
             Expression::Error
@@ -239,11 +290,11 @@ impl<'a> Analyzer<'a> {
         self.diagnose(Diagnostic {
             kind: DiagnosticKind::ConditionIsConstant(b),
             severity: Severity::Hint,
-            span: expr,
+            span: &expr.1,
         });
     }
 }
 
-pub fn analyze<'a>(program: &'a Program) -> Vec<Diagnostic<'a>> {
+pub fn analyze<'a>(program: &'a Program) -> Diagnoses<'a> {
     Analyzer::new(program).analyze_prog()
 }

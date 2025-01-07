@@ -2,13 +2,16 @@
 
 let i = 0
 
-func main(CAP) {
+func main(CAP,CAP) {
 	let numbers = [ 0, 10, 20 ]
 
-	let a =  if 0 { true } else { false }
+	let a =  if x { true } else { false }
+
+	a = 0
+
+	a+a
 
 	print(a)
-
 
 	print(numbers)
 }

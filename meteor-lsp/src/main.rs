@@ -49,7 +49,7 @@ impl Backend {
                     use meteor::semantic;
 
                     let message = x.reason();
-                    let span = &x.span.1;
+                    let span = x.span;
 
                     let start_position = offset_to_position(span.start(), &rope)?;
                     let end_position = offset_to_position(span.end(), &rope)?;
