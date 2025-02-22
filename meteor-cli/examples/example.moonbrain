@@ -4,6 +4,8 @@
 func main(CAP) {
 	let i = 1
 
+	let a = 0
+
 	let a = {
 		what = 0
 	}
@@ -18,6 +20,10 @@ func main(CAP) {
 		let a = [ 10 ]
 
 		let b = a[1];
+
+		until true {
+
+		}
 
 		if fizz and buzz {
 			print("FizzBuzz")

@@ -44,6 +44,7 @@ impl Backend {
                 })
                 .collect(),
             Ok(prog) => meteor::semantic::analyze(&prog)
+                .diagnostics
                 .into_iter()
                 .filter_map(|x| {
                     use meteor::semantic;
