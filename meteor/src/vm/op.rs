@@ -93,46 +93,46 @@ pub enum Instruction {
     Negate,
 }
 
-impl OpCode {
+impl Instruction {
     /// How much does this instruction effect the stack pointer
     fn stack_offset(&self) -> i32 {
         match self {
-            OpCode::Nop => 0,
+            Instruction::Nop => 0,
 
-            OpCode::Constant(..) => 1,
-            OpCode::Pop => -1,
+            Instruction::Constant(..) => 1,
+            Instruction::Pop => -1,
 
-            OpCode::Dup => 1,
-            OpCode::Load(..) => 1,
-            OpCode::Call(..) => 1,
+            Instruction::Dup => 1,
+            Instruction::Load(..) => 1,
+            Instruction::Call(..) => 1,
 
-            OpCode::DynCall => 0,
+            Instruction::DynCall => 0,
 
-            OpCode::Store(..) => -1,
+            Instruction::Store(..) => -1,
 
-            OpCode::Return => 0,
+            Instruction::Return => 0,
 
-            OpCode::Jump(..) | OpCode::JumpIfFalse(..) => 0,
+            Instruction::Jump(..) | Instruction::JumpIfFalse(..) => 0,
 
             // Unary Operations
-            OpCode::Not | OpCode::Negate => 0,
+            Instruction::Not | Instruction::Negate => 0,
 
             // Binary Operations
-            OpCode::Or
-            | OpCode::And
-            | OpCode::Equals
-            | OpCode::GreaterThan
-            | OpCode::LessThan
-            | OpCode::BitAnd
-            | OpCode::BitOr
-            | OpCode::BitXor
-            | OpCode::BitShiftLeft
-            | OpCode::BitShiftRight
-            | OpCode::Add
-            | OpCode::Subtract
-            | OpCode::Multiply
-            | OpCode::Divide
-            | OpCode::Modulo => -1,
+            Instruction::Or
+            | Instruction::And
+            | Instruction::Equals
+            | Instruction::GreaterThan
+            | Instruction::LessThan
+            | Instruction::BitAnd
+            | Instruction::BitOr
+            | Instruction::BitXor
+            | Instruction::BitShiftLeft
+            | Instruction::BitShiftRight
+            | Instruction::Add
+            | Instruction::Subtract
+            | Instruction::Multiply
+            | Instruction::Divide
+            | Instruction::Modulo => -1,
         }
     }
 }
