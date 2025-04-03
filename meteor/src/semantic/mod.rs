@@ -113,7 +113,7 @@ impl<'a> Analyzer<'a> {
     fn analyze_prog(mut self) -> Diagnoses<'a> {
         self.validate_top_level();
 
-        self.push_scope();
+        self.symbols.push(SymbolTable::std_include());
 
         for expr in self.program.expressions() {
             self.analyze(expr);
@@ -158,23 +158,7 @@ impl<'a> Analyzer<'a> {
         match &expr.0 {
             Expression::Error | Expression::If { .. } | Expression::Call { .. } => {}
 
-            Expression::While { condition, then } => {
-                self.check_condition(expr, condition);
-
-                if let Expression::Bool(cond) = condition.0 {
-                    if cond {
-                        self.diagnose(Diagnostic {
-                            kind: DiagnosticKind::InfiniteLoop,
-                            severity: Severity::Warning,
-                            span: &expr.1,
-                        });
-                    }
-                }
-
-                self.analyze_inline(condition);
-                self.analyze_inline(then);
-                return;
-            }
+            Expression::While { .. } => {}
 
             Expression::Let { meta, init } => {
                 self.analyze_inline(init);
@@ -247,7 +231,25 @@ impl<'a> Analyzer<'a> {
                 self.pop_scope();
             }
 
-            Expression::While { .. } |
+            Expression::While { condition, then } => {
+                self.check_condition(expr, condition);
+
+                if let Expression::Bool(cond) = condition.0 {
+                    if cond {
+                        self.diagnose(Diagnostic {
+                            kind: DiagnosticKind::InfiniteLoop,
+                            severity: Severity::Warning,
+                            span: &expr.1,
+                        });
+                    }
+                } else {
+                    self.analyze_inline(condition);
+                }
+
+                self.analyze_inline(then);
+                return;
+            }
+
             Expression::Let { .. } => {
                 self.diagnose(Diagnostic {
                     kind: DiagnosticKind::InvalidInlineExpression,

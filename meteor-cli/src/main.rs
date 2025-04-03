@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use ariadne::{Label, Report, Source};
 use clap::{self, Parser};
-use meteor::{parser::src::SourceId, runtime::Chip};
+use meteor::{parser::src::SourceId, runtime::Chip, semantic};
 
 #[derive(Parser)]
 #[command(version, about, author)]
@@ -30,6 +30,25 @@ fn main() {
             if args.dump_ast {
                 println!("{}", serde_json::to_string_pretty(&ast).unwrap());
                 return;
+            }
+
+            let prog_name = args.file.to_string_lossy();
+
+            for diagnoses in semantic::analyze(&ast).diagnostics {
+                let kind = match diagnoses.severity {
+                    semantic::Severity::Hint => ariadne::ReportKind::Advice,
+                    semantic::Severity::Warning => ariadne::ReportKind::Warning,
+                    semantic::Severity::Error => ariadne::ReportKind::Error,
+                };
+                Report::build(kind, (&prog_name, diagnoses.span.range()))
+                    .with_message(diagnoses.reason())
+                    .with_label(
+                        Label::new((&prog_name, diagnoses.span.range()))
+                            .with_message(diagnoses.reason()),
+                    )
+                    .finish()
+                    .print((&prog_name, Source::from(&contents)))
+                    .unwrap();
             }
 
             let mut chip = Chip::new(ast);

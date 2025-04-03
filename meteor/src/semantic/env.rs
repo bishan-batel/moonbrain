@@ -18,11 +18,23 @@ impl SymbolTable {
         Default::default()
     }
 
+    #[must_use]
+    pub fn std_include() -> Self {
+        Default::default()
+    }
+
     pub fn push(&mut self, name: Spanned<Identifier>) {
         self.symbols.insert(name.0, name.1);
     }
 
-    pub fn contains(&self, name: &Identifier) -> bool {
-        self.symbols.contains_key(name)
+    pub fn contains(&self, ident: &Identifier) -> bool {
+        if self.symbols.contains_key(ident) {
+            true
+        } else {
+            match ident.name() {
+                "print" => true,
+                _ => false,
+            }
+        }
     }
 }

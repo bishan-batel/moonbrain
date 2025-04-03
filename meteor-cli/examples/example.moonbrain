@@ -19,7 +19,7 @@ func main(CAP) {
 
 		let a = [ 10 ]
 
-		let b = a[0];
+		let b = a[0]
 
 		unless cap {
 			print("huh")
@@ -37,6 +37,8 @@ func main(CAP) {
 
 		i = i + 1
 	}
+
+	
 }
 
 
