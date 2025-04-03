@@ -2,14 +2,20 @@
 
 let i = 0
 
-func main(CAP,CAP) {
+let print = func() => 10
+
+func main(CAP) {
 	let numbers = [ 0, 10, 20 ]
+
+
+
+	let a = 3
+
 
 	let a =  if x { true } else { false }
 
 	a = 0
 
-	a+a
 
 	print(a)
 

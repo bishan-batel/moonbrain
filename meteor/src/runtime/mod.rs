@@ -178,22 +178,27 @@ impl Chip {
                 }
             },
 
-            Expression::ArrayIndex { lhs, index } => match (self.eval(lhs)?, self.eval(index)?) {
-                (Value::Array(arr), Value::Number(i)) => RefCell::borrow(&arr)
-                    .get(i.floor() as usize)
-                    .ok_or_else(|| RuntimeError::ArrayOutOfBounds {
-                        array: *lhs.clone(),
-                        index: *index.clone(),
-                    })?
-                    .clone(),
+            Expression::ArrayIndex { lhs, index } => {
+                let lhs_value = self.eval(lhs)?;
+                let idx_value = self.eval(index)?;
 
-                (obj, _) => {
-                    return Err(RuntimeError::CannotIndexIntoType {
-                        array: *lhs.clone(),
-                        data_type: obj.get_type(),
-                    })
+                match (lhs_value, idx_value) {
+                    (Value::Array(arr), Value::Number(i)) => RefCell::borrow(&arr)
+                        .get(i.floor() as usize)
+                        .ok_or_else(|| RuntimeError::ArrayOutOfBounds {
+                            array: *lhs.clone(),
+                            index: *index.clone(),
+                        })?
+                        .clone(),
+
+                    (obj, _) => {
+                        return Err(RuntimeError::CannotIndexIntoType {
+                            array: *lhs.clone(),
+                            data_type: obj.get_type(),
+                        })
+                    }
                 }
-            },
+            }
 
             Expression::BinaryOp { lhs, operator, rhs } => {
                 let unsupported = || Err(RuntimeError::UnsupportedOperation(expr.clone()));
@@ -260,8 +265,8 @@ impl Chip {
                 let value = self.eval(rhs)?;
 
                 match (operator, value) {
-                    (Operator::Sub, Value::Number(n)) => Value::Number(-n),
-                    (Operator::Not, Value::Bool(b)) => Value::Bool(!b),
+                    (Operator::Sub, Value::Number(n)) => (-n).into(),
+                    (Operator::Not, value) => value.falsey().into(),
 
                     (_, value) => {
                         return Err(RuntimeError::UnsupportedUnaryOperation(

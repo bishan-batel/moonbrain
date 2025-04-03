@@ -3,6 +3,9 @@ use std::collections::{HashMap, HashSet};
 
 use chumsky::container::{Container, Seq};
 use displaydoc::Display;
+use env::SymbolTable;
+
+mod env;
 
 use crate::parser::{
     ast::{Expression, Program},
@@ -39,6 +42,9 @@ pub enum DiagnosticKind {
 
     /// Multiple arguments named `{0}`
     DuplicateArgumentName(Identifier),
+
+    /// Cannot declare a new variable inside an expression
+    InvalidInlineExpression,
 }
 
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -73,22 +79,47 @@ pub struct Diagnoses<'a> {
 struct Analyzer<'a> {
     program: &'a Program,
     diagnoses: Vec<Diagnostic<'a>>,
+    symbols: Vec<SymbolTable>,
 }
 
 impl<'a> Analyzer<'a> {
     fn new(program: &'a Program) -> Self {
         Self {
             diagnoses: vec![],
+            symbols: vec![],
             program,
         }
+    }
+
+    fn is_symbol_present(&self, name: &Identifier) -> bool {
+        self.symbols.iter().rev().any(|s| s.contains(name.into()))
+    }
+
+    fn push_scope(&mut self) {
+        self.symbols.push(SymbolTable::new());
+    }
+
+    fn add_symbol(&mut self, symbol: Spanned<Identifier>) {
+        self.symbols
+            .last_mut()
+            .expect("Mismatch pop/push")
+            .push(symbol);
+    }
+
+    fn pop_scope(&mut self) {
+        self.symbols.pop().expect("Mismatch pop/push");
     }
 
     fn analyze_prog(mut self) -> Diagnoses<'a> {
         self.validate_top_level();
 
+        self.push_scope();
+
         for expr in self.program.expressions() {
-            self.analyze_inline(expr);
+            self.analyze(expr);
         }
+
+        self.pop_scope();
 
         Diagnoses {
             diagnostics: self.diagnoses,
@@ -125,35 +156,8 @@ impl<'a> Analyzer<'a> {
 
     fn analyze(&mut self, expr: &'a Spanned<Expression>) {
         match &expr.0 {
-            Expression::Error
-            | Expression::Let { .. }
-            | Expression::If { .. }
-            | Expression::While { .. }
-            | Expression::Call { .. } => {}
+            Expression::Error | Expression::If { .. } | Expression::Call { .. } => {}
 
-            Expression::BinaryOp { operator, .. } if operator != &Operator::Assign => {}
-
-            Expression::Block(exprs) => {
-                if exprs.is_empty() {
-                    self.diagnose(Diagnostic {
-                        kind: DiagnosticKind::EmptyBlock,
-                        severity: Severity::Warning,
-                        span: &expr.1,
-                    });
-                }
-            }
-
-            _ => self.diagnose(Diagnostic {
-                kind: DiagnosticKind::IgnoredOperation,
-                severity: Severity::Warning,
-                span: &expr.1,
-            }),
-        }
-        self.analyze_inline(expr);
-    }
-
-    fn analyze_inline(&mut self, expr: &'a Spanned<Expression>) {
-        match &expr.0 {
             Expression::While { condition, then } => {
                 self.check_condition(expr, condition);
 
@@ -169,16 +173,51 @@ impl<'a> Analyzer<'a> {
 
                 self.analyze_inline(condition);
                 self.analyze_inline(then);
+                return;
             }
 
+            Expression::Let { meta, init } => {
+                self.analyze_inline(init);
+
+                self.add_symbol((meta.0.name().clone(), meta.1.clone()));
+                return;
+            }
+
+            Expression::Block(exprs) => {
+                if exprs.is_empty() {
+                    self.diagnose(Diagnostic {
+                        kind: DiagnosticKind::EmptyBlock,
+                        severity: Severity::Warning,
+                        span: &expr.1,
+                    });
+                }
+            }
+
+            Expression::BinaryOp { operator, .. } if operator == &Operator::Assign => {}
+
+            _ => self.diagnose(Diagnostic {
+                kind: DiagnosticKind::IgnoredOperation,
+                severity: Severity::Warning,
+                span: &expr.1,
+            }),
+        }
+        self.analyze_inline(expr);
+    }
+
+    fn analyze_inline(&mut self, expr: &'a Spanned<Expression>) {
+        match &expr.0 {
             Expression::Array(vec) => self.analyze_each_inline(vec.iter()),
 
             Expression::Block(vec) => {
-                for i in 0..(vec.len() - 1) {
-                    self.analyze(&vec[i]);
-                }
-                if let Some(last) = vec.last() {
-                    self.analyze_inline(last);
+                if !vec.is_empty() {
+                    self.push_scope();
+                    for i in 0..(vec.len() - 1) {
+                        self.analyze(&vec[i]);
+                    }
+                    if let Some(last) = vec.last() {
+                        self.analyze_inline(last);
+                    }
+                    self.pop_scope();
                 }
             }
 
@@ -186,6 +225,8 @@ impl<'a> Analyzer<'a> {
 
             Expression::Func(function) => {
                 let mut duplicates = HashSet::new();
+
+                self.push_scope();
 
                 for arg in function.arguments() {
                     let name = arg.0.name().clone();
@@ -198,13 +239,22 @@ impl<'a> Analyzer<'a> {
                         });
                     } else {
                         duplicates.insert(name);
+                        self.add_symbol((arg.0.name().clone(), arg.1.clone()));
                     }
                 }
 
                 self.analyze_inline(function.body());
+                self.pop_scope();
             }
 
-            Expression::Let { meta: _, init } => self.analyze_inline(init),
+            Expression::While { .. } |
+            Expression::Let { .. } => {
+                self.diagnose(Diagnostic {
+                    kind: DiagnosticKind::InvalidInlineExpression,
+                    severity: Severity::Warning,
+                    span: &expr.1,
+                });
+            }
 
             Expression::If {
                 condition,
@@ -265,9 +315,22 @@ impl<'a> Analyzer<'a> {
                 self.analyze_each_inline(arguments.iter());
             }
 
+            Expression::Ident(ident) => {
+                if !self.is_symbol_present(ident) {
+                    self.diagnose(Diagnostic {
+                        kind: DiagnosticKind::UnknownVariable(ident.clone()),
+                        severity: Severity::Error,
+                        span: &expr.1,
+                    });
+                }
+            }
+
+            // skip
             Expression::Error
+
+
+            // literals cant be invalid
             | Expression::Nil
-            | Expression::Ident(..)
             | Expression::String(_)
             | Expression::Bool(_)
             | Expression::Number(_) => {}

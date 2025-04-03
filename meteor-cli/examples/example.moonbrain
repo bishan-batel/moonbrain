@@ -19,10 +19,10 @@ func main(CAP) {
 
 		let a = [ 10 ]
 
-		let b = a[1];
+		let b = a[0];
 
-		until true {
-
+		unless cap {
+			print("huh")
 		}
 
 		if fizz and buzz {
@@ -41,3 +41,5 @@ func main(CAP) {
 
 
 main(10);
+
+// vim:ft=moonbrain

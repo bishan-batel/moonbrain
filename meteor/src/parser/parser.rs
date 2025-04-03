@@ -316,30 +316,30 @@ where
         let inline_expr = assignment.labelled("expression").as_context();
 
         let while_expr = just(Token::While)
-            .map(|_| false)
-            .or(just(Token::Unless).map(|_| true))
+            .or(just(Token::Unless))
             .then(expr.clone())
             .then(block.clone())
             .map_with(|((unless, cond), body), e| {
-                let while_expr = (
+                let cond = if matches!(unless, Token::Unless) {
+                    let span = cond.1.clone();
+                    (
+                        Expression::UnaryOp {
+                            operator: Operator::Not,
+                            rhs: Box::new(cond),
+                        },
+                        span,
+                    )
+                } else {
+                    cond
+                };
+
+                (
                     Expression::While {
                         condition: Box::new(cond),
                         then: Box::new(body),
                     },
                     e.span(),
-                );
-
-                if unless {
-                    (
-                        Expression::UnaryOp {
-                            operator: Operator::Not,
-                            rhs: Box::new(while_expr),
-                        },
-                        e.span(),
-                    )
-                } else {
-                    while_expr
-                }
+                )
             })
             .boxed();
 
